@@ -493,6 +493,28 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         jumpWindows.forEach { $0.orderOut(nil) }
 
         NSApp.hide(self)
+
+        waitUntilTargetIsActive()
+    }
+
+    /// `NSApp.hide` is asynchronous: the click that follows it used to land
+    /// while the target app was still inactive. Ordinary windows accept that
+    /// first click, but the buttons of a modal alert or sheet do not — the
+    /// click only activated the app, and "Don't Save" was never pressed.
+    private func waitUntilTargetIsActive(timeout: TimeInterval = 0.5) {
+        guard let target = currentApp else {
+            return
+        }
+
+        let deadline = Date().addingTimeInterval(timeout)
+
+        while NSWorkspace.shared.frontmostApplication?.processIdentifier != target.processIdentifier,
+              Date() < deadline {
+            RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.01))
+        }
+
+        // Activation precedes the window becoming key by a beat.
+        RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.05))
     }
 
     /// Safety net: never leave the overlay up when Scoot is no longer active
