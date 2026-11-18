@@ -43,6 +43,12 @@
 		E59C162E264184500033E2CC /* Tree.swift in Sources */ = {isa = PBXBuildFile; fileRef = E59C162D264184500033E2CC /* Tree.swift */; };
 		E59C162F264184500033E2CC /* Tree.swift in Sources */ = {isa = PBXBuildFile; fileRef = E59C162D264184500033E2CC /* Tree.swift */; };
 		E59C1631264185940033E2CC /* TreeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E59C1630264185940033E2CC /* TreeTests.swift */; };
+		E5F0A0122B1A00010000F001 /* Palette.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5F0A0112B1A00010000F001 /* Palette.swift */; };
+		E5F0A0142B1A00010000F001 /* PalettePanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5F0A0132B1A00010000F001 /* PalettePanel.swift */; };
+		E5F0A0162B1A00010000F001 /* PaletteSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5F0A0152B1A00010000F001 /* PaletteSearch.swift */; };
+		E5F0A0172B1A00010000F001 /* PaletteSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5F0A0152B1A00010000F001 /* PaletteSearch.swift */; };
+		E5F0A0192B1A00010000F001 /* PaletteSearchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5F0A0182B1A00010000F001 /* PaletteSearchTests.swift */; };
+		E5F0A01B2B1A00010000F001 /* BrowserSessions.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5F0A01A2B1A00010000F001 /* BrowserSessions.swift */; };
 		E5F0A0022B1A00010000F001 /* Fuzzy.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5F0A0012B1A00010000F001 /* Fuzzy.swift */; };
 		E5F0A0032B1A00010000F001 /* Fuzzy.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5F0A0012B1A00010000F001 /* Fuzzy.swift */; };
 		E5F0A0052B1A00010000F001 /* FuzzyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5F0A0042B1A00010000F001 /* FuzzyTests.swift */; };
@@ -133,6 +139,11 @@
 		E59C1629263E52540033E2CC /* GridTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GridTests.swift; sourceTree = "<group>"; };
 		E59C162D264184500033E2CC /* Tree.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tree.swift; sourceTree = "<group>"; };
 		E59C1630264185940033E2CC /* TreeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TreeTests.swift; sourceTree = "<group>"; };
+		E5F0A0112B1A00010000F001 /* Palette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Palette.swift; sourceTree = "<group>"; };
+		E5F0A0132B1A00010000F001 /* PalettePanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PalettePanel.swift; sourceTree = "<group>"; };
+		E5F0A0152B1A00010000F001 /* PaletteSearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaletteSearch.swift; sourceTree = "<group>"; };
+		E5F0A0182B1A00010000F001 /* PaletteSearchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaletteSearchTests.swift; sourceTree = "<group>"; };
+		E5F0A01A2B1A00010000F001 /* BrowserSessions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserSessions.swift; sourceTree = "<group>"; };
 		E5F0A0012B1A00010000F001 /* Fuzzy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Fuzzy.swift; sourceTree = "<group>"; };
 		E5F0A0042B1A00010000F001 /* FuzzyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FuzzyTests.swift; sourceTree = "<group>"; };
 		E59C1632264AC4F60033E2CC /* CGSize+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CGSize+Extensions.swift"; sourceTree = "<group>"; };
@@ -249,6 +260,10 @@
 				E5497A02276E2C47006EA19B /* ElementView.swift */,
 				E59C162D264184500033E2CC /* Tree.swift */,
 				E5F0A0012B1A00010000F001 /* Fuzzy.swift */,
+				E5F0A01A2B1A00010000F001 /* BrowserSessions.swift */,
+				E5F0A0152B1A00010000F001 /* PaletteSearch.swift */,
+				E5F0A0132B1A00010000F001 /* PalettePanel.swift */,
+				E5F0A0112B1A00010000F001 /* Palette.swift */,
 				E5B921492656A18D000A0A75 /* FeedbackView.swift */,
 				E591E56B2636F8D000C037FF /* Mouse.swift */,
 				E5F61EEF27ACCF4B0056A6EB /* SettingsView.swift */,
@@ -270,6 +285,7 @@
 				E5EB845027837F380086A5D6 /* GeometryTests.swift */,
 				E59C1630264185940033E2CC /* TreeTests.swift */,
 				E5F0A0042B1A00010000F001 /* FuzzyTests.swift */,
+				E5F0A0182B1A00010000F001 /* PaletteSearchTests.swift */,
 				E5EB84522787E3F80086A5D6 /* PositionableTests.swift */,
 				E5776241262F04D300849D7D /* Info.plist */,
 			);
@@ -465,6 +481,10 @@
 				E50A612D279DEC7900D970EF /* NSImage+Extensions.swift in Sources */,
 				E59F854F27893B3A00A9FBF6 /* Positionable+Crowding.swift in Sources */,
 				E5F0A0022B1A00010000F001 /* Fuzzy.swift in Sources */,
+				E5F0A01B2B1A00010000F001 /* BrowserSessions.swift in Sources */,
+				E5F0A0162B1A00010000F001 /* PaletteSearch.swift in Sources */,
+				E5F0A0142B1A00010000F001 /* PalettePanel.swift in Sources */,
+				E5F0A0122B1A00010000F001 /* Palette.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -475,6 +495,8 @@
 				E59C162A263E52540033E2CC /* GridTests.swift in Sources */,
 				E5F0A0052B1A00010000F001 /* FuzzyTests.swift in Sources */,
 				E5F0A0032B1A00010000F001 /* Fuzzy.swift in Sources */,
+				E5F0A0172B1A00010000F001 /* PaletteSearch.swift in Sources */,
+				E5F0A0192B1A00010000F001 /* PaletteSearchTests.swift in Sources */,
 				E5EB845127837F380086A5D6 /* GeometryTests.swift in Sources */,
 				E59C1631264185940033E2CC /* TreeTests.swift in Sources */,
 				E5EB84532787E3F80086A5D6 /* PositionableTests.swift in Sources */,

@@ -435,6 +435,76 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         bringToForeground()
     }
 
+    // MARK: Palette
+
+    lazy var palette: PaletteController = {
+        let palette = PaletteController()
+        palette.onChoose = { [weak self] item in
+            self?.perform(item)
+        }
+        palette.onCancel = { [weak self] in
+            self?.bringToBackground()
+        }
+        return palette
+    }()
+
+    /// Opens the searchable palette over the frontmost app's window controls
+    /// and menu items.
+    ///
+    /// The palette is not a `JumpMode`: it draws no overlay and moves no
+    /// cursor, so it bypasses the input window entirely and owns its panel.
+    func showPalette() {
+        self.currentApp = NSWorkspace.shared.frontmostApplication
+
+        guard let app = currentApp else {
+            return
+        }
+
+        let windowFrame = PaletteSource.focusedWindowFrame(of: app)
+        let pid = app.processIdentifier
+
+        inputWindow.hideJumpViews()
+        jumpWindows.forEach { $0.orderOut(nil) }
+
+        // Open at once with the cached menu items; the window scan is the slow
+        // part and lands a beat later. A generation counter drops the result
+        // of a scan that a newer invocation has superseded.
+        paletteGeneration += 1
+        let generation = paletteGeneration
+
+        NSApp.activate(ignoringOtherApps: true)
+        palette.show(items: menuItemCache[pid] ?? [], over: windowFrame)
+
+        DispatchQueue.global(qos: .userInteractive).async { [weak self] in
+            let windowItems = PaletteSource.windowItems(for: app)
+            let menuItems = PaletteSource.menuItems(for: app)
+
+            DispatchQueue.main.async {
+                guard let self else {
+                    return
+                }
+                self.menuItemCache[pid] = menuItems
+                guard generation == self.paletteGeneration, self.palette.isVisible else {
+                    return
+                }
+                self.palette.update(items: windowItems + menuItems)
+            }
+        }
+    }
+
+    private var paletteGeneration = 0
+
+    /// Menu bar items per process, so the palette opens with something to
+    /// search while the window scan runs.
+    private var menuItemCache = [pid_t: [PaletteItem]]()
+
+    /// Hands focus back to the target app, then presses the chosen item, so
+    /// clicks and focus changes land in an active window.
+    private func perform(_ item: PaletteItem) {
+        bringToBackground()
+        PaletteSource.perform(item)
+    }
+
     /// Scans the focused window for element-based navigation, retrying when the
     /// app has not finished waking its accessibility tree.
     ///

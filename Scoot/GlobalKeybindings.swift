@@ -18,6 +18,11 @@ extension KeyboardShortcuts.Name {
         default: .init(.l, modifiers: [.command, .shift])
     )
 
+    static let showPalette = Self(
+        "showPalette",
+        default: .init(.h, modifiers: [.command, .shift])
+    )
+
 }
 
 
@@ -39,6 +44,10 @@ struct GlobalKeybindings {
 
         KeyboardShortcuts.onKeyUp(for: .useFreestyleNavigation) {
             appDelegate?.bringToForeground(using: .freestyle)
+        }
+
+        KeyboardShortcuts.onKeyUp(for: .showPalette) {
+            appDelegate?.showPalette()
         }
 
     }
