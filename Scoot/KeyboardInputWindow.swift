@@ -179,7 +179,12 @@ class KeyboardInputWindow: TransparentWindow {
         // Because Scoot places labels vertically, horizontal congestion is
         // less of an issue in practice. For this reason, add padding in the y
         // direction only (`paddingY`).
-          .reducingCrowding(intersectionThreshold: 0.1, paddingX: 0.0, paddingY: 10.0)
+        //
+        // Upstream used 10 pt, which also culls stacked controls a few points
+        // apart: Safari's camera/microphone sheet has three 30 pt buttons 4 pt
+        // apart, and "Never for This Website" lost its label to "Allow". 2 pt
+        // still thins rows that touch (dense lists) but keeps separate buttons.
+          .reducingCrowding(intersectionThreshold: 0.1, paddingX: 0.0, paddingY: 2.0)
 
         var data = [(elements: [Accessibility.Element], screenRects: [CGRect])]()
 
