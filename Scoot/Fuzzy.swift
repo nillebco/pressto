@@ -46,7 +46,11 @@ enum Fuzzy {
     /// with tests in hand — see `ScootTests/FuzzyTests.swift`.
     enum Weight {
         static let character = 1.0
-        static let consecutive = 2.0
+        /// Must outweigh `wordBoundary`: the matcher picks the best placement,
+        /// and with a smaller run bonus it prefers hopping between word starts
+        /// ("Build SPA … frontend … private agents") over a tight run
+        /// ("sfp-rag") for `sfprag`.
+        static let consecutive = 4.0
         static let wordBoundary = 3.0
         static let startOfString = 5.0
 
@@ -141,56 +145,107 @@ enum Fuzzy {
         }
     }
 
+    /// Finds the best-scoring placement of `token` in the candidate.
+    ///
+    /// A greedy left-to-right scan takes the first characters that fit, so
+    /// `sfprag` against "run-… | HCP Terraform …/sfp-rag-dev/…" would pick a
+    /// scattered s…f…p… in the title and never see the tight `sfp-rag` run in
+    /// the URL. This is a small dynamic program instead: for every token
+    /// character and every candidate position, the best score of a placement
+    /// ending there. Gap penalties are capped at `Weight.maxChargedGap`, so
+    /// predecessors further back than that cost the same, and a running maximum
+    /// keeps each row linear in the candidate length.
     private static func match(
         token: [Character],
         in candidate: Prepared
     ) -> (score: Double, indices: [Int])? {
 
         let needle = token.map(folded)
+        let haystack = candidate.folded
+        let n = haystack.count
 
         guard !needle.isEmpty else {
             return (0.0, [])
         }
-
-        var score = 0.0
-        var indices = [Int]()
-        var position = 0
-
-        for index in candidate.folded.indices {
-            guard position < needle.count else {
-                break
-            }
-            guard candidate.folded[index] == needle[position] else {
-                continue
-            }
-
-            var points = Weight.character
-
-            if index == 0 {
-                points += Weight.startOfString
-            } else if isWordBoundary(candidate.characters, at: index) {
-                points += Weight.wordBoundary
-            }
-
-            if let previous = indices.last {
-                let gap = index - previous - 1
-                if gap == 0 {
-                    points += Weight.consecutive
-                } else {
-                    points -= Weight.gap * Double(min(gap, Weight.maxChargedGap))
-                }
-            }
-
-            score += points
-            indices.append(index)
-            position += 1
-        }
-
-        guard position == needle.count else {
+        guard needle.count <= n else {
             return nil
         }
 
-        return (score, indices)
+        func base(_ index: Int) -> Double {
+            if index == 0 {
+                return Weight.character + Weight.startOfString
+            }
+            return Weight.character + (isWordBoundary(candidate.characters, at: index) ? Weight.wordBoundary : 0)
+        }
+
+        let unreachable = -Double.infinity
+        var previous = [Double](repeating: unreachable, count: n)
+        var parents = [[Int]]()
+
+        for j in 0..<n where haystack[j] == needle[0] {
+            previous[j] = base(j)
+        }
+        parents.append([Int](repeating: -1, count: n))
+
+        for i in 1..<needle.count {
+            var current = [Double](repeating: unreachable, count: n)
+            var parent = [Int](repeating: -1, count: n)
+
+            // Best predecessor at or before `farIndex`, all charged the capped gap.
+            var farBest = unreachable
+            var farIndex = -1
+            var farScanned = -1
+
+            for j in i..<n {
+                // Positions k <= j - 1 - maxChargedGap pay the full capped gap.
+                let farLimit = j - 1 - Weight.maxChargedGap
+                while farScanned < farLimit {
+                    farScanned += 1
+                    if previous[farScanned] > farBest {
+                        farBest = previous[farScanned]
+                        farIndex = farScanned
+                    }
+                }
+
+                guard haystack[j] == needle[i] else {
+                    continue
+                }
+
+                var best = farBest - Weight.gap * Double(Weight.maxChargedGap)
+                var bestIndex = farIndex
+
+                for k in max(farLimit + 1, 0)..<j where previous[k] > unreachable {
+                    let gap = j - k - 1
+                    let transition = gap == 0 ? Weight.consecutive : -Weight.gap * Double(gap)
+                    if previous[k] + transition > best {
+                        best = previous[k] + transition
+                        bestIndex = k
+                    }
+                }
+
+                if bestIndex >= 0, best > unreachable {
+                    current[j] = base(j) + best
+                    parent[j] = bestIndex
+                }
+            }
+
+            previous = current
+            parents.append(parent)
+        }
+
+        guard let end = previous.indices.max(by: { previous[$0] < previous[$1] }),
+              previous[end] > unreachable else {
+            return nil
+        }
+
+        var indices = [Int](repeating: 0, count: needle.count)
+        var position = end
+        for i in stride(from: needle.count - 1, through: 0, by: -1) {
+            indices[i] = position
+            position = parents[i][position]
+        }
+
+        return (previous[end], indices)
     }
 
     /// True when `index` starts a new word: after a separator, or at a

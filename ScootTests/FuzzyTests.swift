@@ -9,6 +9,34 @@ class FuzzyTests: XCTestCase {
         XCTAssertNil(Fuzzy.match(query: "opne", candidate: "Open"))
     }
 
+    /// pagecast regression: its Fuse.js matcher tolerates missing characters,
+    /// so "cplmrg" ranked "Complete" above "Complete merge". A subsequence
+    /// matcher must drop "Complete" outright (it has no m, r, g after "cpl").
+    func testAbbreviationDropsTheShorterNonMatch() {
+        XCTAssertNil(Fuzzy.match(query: "cplmrg", candidate: "Complete"))
+
+        let ranked = Fuzzy.rank(["Complete", "Complete merge"], query: "cplmrg", text: { $0 })
+        XCTAssertEqual(ranked.map(\.element), ["Complete merge"])
+    }
+
+    /// The greedy scan used to lock onto the first s/f/p in a tab title and
+    /// miss the tight run in its URL.
+    func testPrefersTightRunOverEarlierScatteredMatch() {
+        let candidate = "run-UHc4 | Runs | asiandevbank | HCP Terraform tab app.terraform.io/app/asiandevbank/workspaces/sfp-rag-dev/runs"
+        let match = Fuzzy.match(query: "sfprag", candidate: candidate)
+        let start = candidate.distance(from: candidate.startIndex, to: candidate.range(of: "sfp-rag")!.lowerBound)
+        XCTAssertEqual(match?.indices.first, start)
+    }
+
+    func testTightRunOutranksScatteredCandidate() {
+        let ranked = Fuzzy.rank(
+            ["Build SPA • ci: deploy frontend with elastic private agents", "Runs | workspaces/sfp-rag-dev/runs"],
+            query: "sfprag",
+            text: { $0 }
+        )
+        XCTAssertEqual(ranked.first?.element, "Runs | workspaces/sfp-rag-dev/runs")
+    }
+
     func testSubsequenceMatches() {
         XCTAssertNotNil(Fuzzy.match(query: "ot", candidate: "Open Terminal"))
         XCTAssertNotNil(Fuzzy.match(query: "opte", candidate: "Open Terminal"))
