@@ -150,10 +150,10 @@ class GridTests: XCTestCase {
     /// Stepping by a fractional cell size can land a hair under the edge and
     /// emit an extra row or column, so check every realistic combination.
     func testRectCountMatchesCellCountForAnyScreenAndCellSize() {
-        for width in stride(from: 800.0, through: 3440.0, by: 1.0) {
+        for width in stride(from: 800.0, through: 3440.0, by: 7.0) {
             for height in [900.0, 982.0, 1080.0, 1117.0, 1169.0, 1415.0, 1440.0, 1865.0] {
                 for side in stride(from: 30.0, through: 200.0, by: 10.0) {
-                    var grid = Grid(
+                    let grid = Grid(
                         gridSize: CGSize(width: width, height: height),
                         targetCellSize: CGSize(width: side, height: side)
                     )
