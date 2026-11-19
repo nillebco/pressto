@@ -2,11 +2,32 @@
 
 _A keyboard palette for every Mac app: press ⇧⌘H, type a few letters, press ↵._
 
-Pressto makes the controls of any app searchable, the way [Pagecast](https://labs.nilleb.co/pagecast.html) does for web pages. It is a fork of [Scoot](https://github.com/mjrusso/scoot), Michael Russo's keyboard cursor tool, and keeps everything Scoot does: hint labels, the grid, freestyle mode. More at [labs.nilleb.co/pressto](https://labs.nilleb.co/pressto.html).
+<img align="right" width="128" alt="App icon" src="./Scoot/Assets.xcassets/AppIcon.appiconset/512.png" />
+
+Pressto lets you reach anything on your Mac's screen from the keyboard: search for it by name, jump to it by a two-letter label, or steer the pointer there. It is built on [Scoot](https://github.com/mjrusso/scoot), Michael Russo's keyboard cursor tool, and keeps everything Scoot does. More at [pressto.app](https://pressto.app).
 
 > The rename is in progress: the source, the app bundle (`Scoot.app`, `co.nillebco.scoot`) and the menu bar still say Scoot.
 
-## The palette
+## Why this exists
+
+Keyboard tools for the Mac mostly answer *“where is it?”*: they put labels on what's on screen, or a grid over it, and you type the label you read. That works, but you have to look first, and it can't reach what isn't drawn: a menu item, a tab scrolled out of the sidebar, a button behind a sheet.
+
+Most of the time you already know *what* you want — “Complete merge”, “Export…”, the tab with `sfp-rag-dev` in its address. Pressto lets you type that. A fuzzy matcher ranks every control of the focused window, every menu item and every browser tab as you type, and ↵ presses the one you meant. On the web, [Pagecast](https://labs.nilleb.co/pagecast.html) does this for a page; Pressto does it for every app, through the macOS accessibility tree. Closed-source tools such as Shortcat offer a search like this; no open-source one did.
+
+Search doesn't replace pointing: some things have no name (a spot in a canvas, a map, a drag target). So Pressto keeps Scoot's labels, grid and free cursor movement, and the four modes cover each other.
+
+## Four ways to reach something
+
+| Shortcut | Mode | Use it when |
+| --- | --- | --- |
+| ⇧⌘H | **Palette** | you know its name: a button, a menu item, a tab, a page action |
+| ⇧⌘J | **Element labels** | you can see it and it's a control: type the label that appears on it |
+| ⇧⌘K | **Grid** | it's anywhere on any screen, named or not: type the cell, then nudge |
+| ⇧⌘L | **Freestyle** | you just want to nudge the pointer, click, drag or scroll |
+
+All shortcuts can be changed in Preferences. In every mode except the palette, the arrow keys (or Emacs / vi bindings) move the pointer, ↵ clicks, `=` starts a drag and ⇧↑/⇧↓ scroll; see [Usage](#usage).
+
+### The palette
 
 Press ⇧⌘H in any app. A search field opens over the focused window, listing:
 
@@ -19,65 +40,25 @@ Press ⇧⌘H in any app. A search field opens over the focused window, listing:
 
 Type to rank all groups together, or narrow to one with a prefix: `>` actions, `#` window, `@` tabs, `/` menu (or `tab:`, `menu:`, …). ↑/↓ to move, ↵ to press. Rows are pressed through the accessibility API (`AXPress`), so they work on sheets and on controls that are covered or scrolled away.
 
-The matcher (`Scoot/Fuzzy.swift`) requires every query token to be a subsequence and scores the best placement, with bonuses for the start of the string, word boundaries and consecutive runs: `cplmrg` finds "Complete merge", and `sfprag` finds the tab whose URL holds `sfp-rag-dev`.
+The matcher (`Scoot/Fuzzy.swift`) requires every query token to appear in order and scores the best placement, with bonuses for the start of the string, word boundaries and consecutive runs. `cplmrg` finds “Complete merge” and not “Complete”; `sfprag` finds the tab whose URL holds `sfp-rag-dev` rather than a title that happens to contain those letters scattered.
 
-## Development
+### Element labels and the grid
 
-```sh
-scripts/dev                 # build, sign, relaunch
-scripts/dev --dump          # build, relaunch with SCOOT_DUMP_ELEMENTS=1
-scripts/test                # unit tests
-```
-
-Grant Accessibility to the built app once; signing with an Apple Development identity keeps the grant across rebuilds (`SCOOT_SIGN_IDENTITY` overrides it). Debug → *Dump Accessibility Elements* writes every element of the focused window to `~/Library/Application Support/Scoot/element-dumps/` and the pasteboard.
-
-The unit-test bundle is **host-less**: the sources under test are compiled into the test bundle instead of being injected into the app. A hosted test whose host is a menu-bar agent (`LSUIElement`) makes Xcode 27's LaunchServices launcher abort with `Assertion failed: childPID > 0` before a single test runs; the same happens when a copy of the app is already running, which is why `scripts/test` stops any running instance first.
-
-### Changes from Scoot
-
-Besides the palette:
-
-- the grid builds its cells by index, so no screen or cell size can crash it, and its cell size ranges over 30–200 pt;
-- element mode reaches web page content in Firefox-based browsers (frameless `AXWebArea` nodes are descended into; the tree is woken at invoke and rescanned while it fills in);
-- stacked buttons a few points apart keep their own labels;
-- clicks wait for the target app to activate, so buttons in alerts and sheets are pressed;
-- the labels are dismissed when the app is hidden, and ⌘Q dismisses the overlay instead of quitting;
-- only the `AXEnhancedUserInterface` flags the app itself switched on are reverted;
-- deployment target macOS 12, so it builds on Xcode 27.
-
----
-
-<img align="right" width="128" alt="App icon" src="./Scoot/Assets.xcassets/AppIcon.appiconset/512.png" />
-
-Pressto is a small utility app that provides fast, keyboard-driven control over the mouse pointer. Pressto lets you move your mouse—and click and drag, too—all from the comfort of your keyboard.
-
-Pressto supports two primary navigation modes: **element-based**, and **grid-based**.
-
-* **Element-based navigation:** MacOS accessibility APIs are used to find user interface elements, such as buttons and links, on the user's screen. (In this mode, Pressto will look for elements in the focused window of the frontmost app.) Here, for example, Pressto has identified the only link on the page _("More information...")_, and assigned it the key sequence "aa":
+These come from Scoot. **Element labels** use the macOS accessibility APIs to find the buttons and links of the focused window and give each a short key sequence. Here the only link on the page _(“More information...”)_ gets “aa”:
 
 <p align="center">
-  <img src="./Assets/Examples/element-nav.png" alt="Pressto using the element-based navigation mode" />
+  <img src="./Assets/Examples/element-nav.png" alt="Element labels" />
 </p>
 
-* **Grid-based navigation:** all connected screens are subdivided into a grid of equally-sized cells.
+The **grid** divides every connected screen into equal cells, each with its own sequence; ⇧⌘= and ⇧⌘- change the cell size (30–200 pt):
 
 <p align="center">
-  <img src="./Assets/Examples/grid-nav.png" alt="Pressto using the grid-based navigation mode" />
+  <img src="./Assets/Examples/grid-nav.png" alt="The grid" />
 </p>
 
-Each location is identified by a unique character sequence, making each element (or cell) uniquely addressable with the keyboard — simply type the associated key sequence to teleport your mouse cursor to that location.
-
-Pressto also supports moving the mouse cursor using text editing keyboard shortcuts that you're likely already familiar with (specifically, those for moving the insertion point). Pressto supports standard MacOS text editing shortcuts, as well as Emacs and vi keybindings. For a full breakdown, see the [usage documentation](#usage).
-
-There's also a supplementary usage mode:
-
-* **Freestyle:** a freeform usage mode that offers no special navigation assistance. It's like using the grid-based navigation mode, but _without_ bringing up the grid.
-
-Freestyle mode is particularly handy for those cases where you want to quickly nudge the cursor using the (re-purposed) text editing keyboard shortcuts, and would prefer to not have the grid or element-based views on screen.
+Type a sequence and the pointer jumps there; then click, drag or nudge it from the keyboard. **Freestyle** is the same without anything drawn on screen. Pressto also improves these modes. Element labels now reach web page content in Firefox-based browsers, and stacked buttons each keep their own label. Clicks on dialog buttons now register. The grid can't crash at any size (see [Changes from Scoot](#changes-from-scoot)).
 
 ## About
-
-* Scoot, which Pressto is built on, started as an experiment: an attempt to craft a keyboard-driven mouse movement utility that's efficient, and (more importantly) that users will actually _want_ to use. Pressto adds search on top, for the controls you know by name rather than by position.
 
 * Pressto is _not_ intended to replace the mouse or trackpad entirely. It's here to augment them.
 
@@ -89,7 +70,7 @@ Freestyle mode is particularly handy for those cases where you want to quickly n
 
 ## Usage
 
-To activate Pressto in the **element-based navigation mode**, use the ⇧⌘J global keyboard shortcut. Alternatively, to activate Pressto in the **grid-based navigation mode**, use the ⇧⌘K global keyboard shortcut. And for **freestyle mode**, use the ⇧⌘L global keyboard shortcut. (These shortcuts can be customized.)
+To activate Pressto in the **element-based navigation mode**, use the ⇧⌘J global keyboard shortcut. Alternatively, to activate Pressto in the **grid-based navigation mode**, use the ⇧⌘K global keyboard shortcut. And for **freestyle mode**, use the ⇧⌘L global keyboard shortcut. The **palette** opens with ⇧⌘H (see [The palette](#the-palette)). (These shortcuts can be customized.)
 
 As long as Pressto is running, any of these hotkeys will bring the app to the foreground, and activate the requested mode.
 
@@ -291,6 +272,30 @@ For reference, the following key sequence was used to grab the file and drop it 
 ## Feature Backlog
 
 See the [issue tracker][scoot-issues]. Fixes that apply to Scoot too are sent upstream ([mjrusso/scoot#61–#69](https://github.com/mjrusso/scoot/pulls?q=is%3Apr+author%3Anilleb)).
+
+## Development
+
+```sh
+scripts/dev                 # build, sign, relaunch
+scripts/dev --dump          # build, relaunch with SCOOT_DUMP_ELEMENTS=1
+scripts/test                # unit tests
+```
+
+Grant Accessibility to the built app once; signing with an Apple Development identity keeps the grant across rebuilds (`SCOOT_SIGN_IDENTITY` overrides it). Debug → *Dump Accessibility Elements* writes every element of the focused window to `~/Library/Application Support/Scoot/element-dumps/` and the pasteboard.
+
+The unit-test bundle is **host-less**: the sources under test are compiled into the test bundle instead of being injected into the app. A hosted test whose host is a menu-bar agent (`LSUIElement`) makes Xcode 27's LaunchServices launcher abort with `Assertion failed: childPID > 0` before a single test runs; the same happens when a copy of the app is already running, which is why `scripts/test` stops any running instance first.
+
+### Changes from Scoot
+
+Besides the palette:
+
+- the grid builds its cells by index, so no screen or cell size can crash it, and its cell size ranges over 30–200 pt;
+- element mode reaches web page content in Firefox-based browsers (frameless `AXWebArea` nodes are descended into; the tree is woken at invoke and rescanned while it fills in);
+- stacked buttons a few points apart keep their own labels;
+- clicks wait for the target app to activate, so buttons in alerts and sheets are pressed;
+- the labels are dismissed when the app is hidden, and ⌘Q dismisses the overlay instead of quitting;
+- only the `AXEnhancedUserInterface` flags the app itself switched on are reverted;
+- deployment target macOS 12, so it builds on Xcode 27.
 
 ## License
 
