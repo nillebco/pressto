@@ -35,12 +35,25 @@ Press ⇧⌘H in any app. A search field opens over the focused window, listing:
 | --- | --- |
 | Quick actions | copy the page address, as a Markdown link, or the page title (browsers) |
 | Window | the focused window's buttons, links, fields and tabs |
-| Tabs | browser tabs; in Zen and Firefox, matched by URL as well as title |
+| Tabs | browser tabs, matched by address as well as title (Safari, Chrome, Brave, Edge, Vivaldi, Zen, Firefox) |
 | Menu | every item of the app's menu bar |
 
 Type to rank all groups together, or narrow to one with a prefix: `>` actions, `#` window, `@` tabs, `/` menu (or `tab:`, `menu:`, …). ↑/↓ to move, ↵ to press. Rows are pressed through the accessibility API (`AXPress`), so they work on sheets and on controls that are covered or scrolled away.
 
 The matcher (`Scoot/Fuzzy.swift`) requires every query token to appear in order and scores the best placement, with bonuses for the start of the string, word boundaries and consecutive runs. `cplmrg` finds “Complete merge” and not “Complete”; `sfprag` finds the tab whose URL holds `sfp-rag-dev` rather than a title that happens to contain those letters scattered.
+
+### Permissions
+
+Pressto asks for two kinds of access, both in **System Settings → Privacy & Security**:
+
+| Permission | Asked | Why |
+| --- | --- | --- |
+| **Accessibility** | once, at first launch | to see the controls of other apps and to press them, click and move the pointer. Nothing works without it. |
+| **Automation** | once per browser, the first time you open the palette over it (Safari, Chrome, Brave, Edge, Vivaldi) | to read the address of each open tab, so a tab can be found by its address and not only by its title |
+
+Automation is optional. If you click *Don't Allow*, tabs are still listed by title; you can change your mind later under Privacy & Security → Automation → Scoot (the bundle still carries the old name). Zen and Firefox need no Automation access: their tab addresses come from the session file they keep in your profile folder.
+
+Pressto reads tab addresses only for the window you're looking at, only when you open the palette, and never sends them anywhere: everything stays on your Mac.
 
 ### Element labels and the grid
 
