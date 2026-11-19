@@ -9,6 +9,7 @@ private final class PalettePanel: NSPanel {
 /// The palette UI: a search field over a ranked list, Raycast/pagecast style.
 ///
 /// Keys: type to filter, ↑/↓ (or ⌃P/⌃N) to move, ↵ to press, ⎋ to dismiss.
+@MainActor
 final class PaletteController: NSObject {
 
     /// Called with the chosen item after the panel has closed.

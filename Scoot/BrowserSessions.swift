@@ -61,7 +61,8 @@ enum BrowserSessions {
     // MARK: - Internals
 
     private static let lock = NSLock()
-    private static var cache = [URL: (modified: Date?, urls: [String: [URL]])]()
+    // Guarded by `lock`.
+    nonisolated(unsafe) private static var cache = [URL: (modified: Date?, urls: [String: [URL]])]()
 
     /// The most recently written session file among the browser's profiles.
     private static func sessionFile(for bundleIdentifier: String) -> URL? {

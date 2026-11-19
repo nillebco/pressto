@@ -223,7 +223,7 @@ class TreeTests: XCTestCase {
             ["aaa", "aaz", "az", "za", "zz"]
         )
 
-        var node: Tree<Int>.Node<Int>! = nil
+        var node: Tree<Int>.Node! = nil
 
         node = tree.root.step(by: "a")
 
@@ -235,7 +235,7 @@ class TreeTests: XCTestCase {
 
         node = node.step(by: "z")
 
-        XCTAssertEqual(node, Tree<Int>.Node<Int>(label: "z", value: 1))
+        XCTAssertEqual(node, Tree<Int>.Node(label: "z", value: 1))
 
         node = node.step(by: "q")
 
@@ -254,7 +254,7 @@ class TreeTests: XCTestCase {
 
         node = node.step(by: "z")
 
-        XCTAssertEqual(node, Tree<Int>.Node<Int>(label: "z", value: 4))
+        XCTAssertEqual(node, Tree<Int>.Node(label: "z", value: 4))
     }
 
     func testWalkingByCharacterSequence() {
