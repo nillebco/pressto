@@ -509,8 +509,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     /// Hands focus back to the target app, then presses the chosen item, so
     /// clicks and focus changes land in an active window.
     private func perform(_ item: PaletteItem) {
-        bringToBackground()
-        PaletteSource.perform(item)
+        // Wait for the target app to be active: a click on a sheet's button
+        // only activates the app if it lands too early.
+        bringToBackground {
+            PaletteSource.perform(item)
+        }
     }
 
     /// Scans the focused window for element-based navigation, retrying when

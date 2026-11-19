@@ -54,6 +54,10 @@ struct PaletteItem {
     /// A second line under the label: a tab's address. Searchable.
     var detail: String? = nil
 
+    /// Set when the app reports the control as disabled but the palette keeps
+    /// it anyway (see `elementItems`): pressing it goes through a real click.
+    var clickInsteadOfPress = false
+
     /// The text the fuzzy matcher scores. The label comes first, so match
     /// indices below `label.count` can be highlighted in the label.
     var searchText: String {
@@ -169,16 +173,26 @@ enum PaletteSource {
 
     private static func elementItems(of app: Application) -> [PaletteItem] {
 
-        guard let window: UIElement = try? app.attribute(.focusedWindow),
-              let windowFrame: CGRect = try? window.attribute(.frame) else {
+        // Some apps report no focused window while a sheet is up; fall back to
+        // the main window.
+        guard let window: UIElement = (try? app.attribute(.focusedWindow)) ?? (try? app.attribute(.mainWindow)),
+              let focusedFrame: CGRect = try? window.attribute(.frame) else {
+            OSLog.main.log("Palette: no focused or main window")
             return []
         }
 
         var items = [PaletteItem]()
+        var windowFrame = focusedFrame
         var pageURL: URL?
 
         /// `clip` is the horizontal extent every ancestor allows (raw AX
         /// coordinates); `inTabGroup` is set below an AXTabGroup.
+        // Safari reports the buttons of its permission prompts ("Allow
+        // meet.google.com to use your camera?") as disabled to accessibility
+        // clients, yet a real click works. Inside a sheet or dialog, keep
+        // disabled buttons and press them with the mouse.
+        var inDialog = false
+
         func traverse(_ node: UIElement, depth: Int, clip: ClosedRange<CGFloat>, inTabGroup: Bool) {
 
             guard depth < maximumDepth, items.count < maximumElements,
@@ -228,8 +242,10 @@ enum PaletteSource {
                     pageURL = url as URL
                 }
 
+                let enabled = (try? child.attribute(.enabled) as Bool?) ?? true
+
                 if elementRoles.contains(role),
-                   (try? child.attribute(.enabled) as Bool?) ?? true,
+                   enabled || (inDialog && role == Role.button.rawValue && rawFrame != nil),
                    let label = label(of: child, role: role) {
 
                     let frame = rawFrame.map { $0.convertToCocoa() }
@@ -242,7 +258,8 @@ enum PaletteSource {
                         context: isTab ? "tab" : roleName(role),
                         role: role,
                         element: child,
-                        frame: frame
+                        frame: frame,
+                        clickInsteadOfPress: !enabled
                     ))
                 }
 
@@ -250,7 +267,29 @@ enum PaletteSource {
             }
         }
 
+        let windowRole: String = (try? window.attribute(.role)) ?? ""
+        let windowSubrole: String = (try? window.attribute(.subrole)) ?? ""
+        inDialog = windowRole == "AXSheet" || windowSubrole.hasSuffix("Dialog")
+
         traverse(window, depth: 0, clip: windowFrame.minX...windowFrame.maxX, inTabGroup: false)
+
+        // A sheet (Safari's camera/microphone prompt, a save dialog) can hang
+        // off the window as AXSheets rather than become the focused window.
+        // Its buttons are what the user wants, so scan it with its own bounds.
+        let sheets: [UIElement] = (try? window.arrayAttribute("AXSheets")) ?? []
+        for sheet in sheets {
+            guard let sheetFrame: CGRect = try? sheet.attribute(.frame) else { continue }
+            windowFrame = sheetFrame
+            inDialog = true
+            traverse(sheet, depth: 0, clip: sheetFrame.minX...sheetFrame.maxX, inTabGroup: false)
+        }
+
+        if items.count < 3 {
+            let role: String = (try? window.attribute(.role)) ?? "?"
+            let subrole: String = (try? window.attribute(.subrole)) ?? "?"
+            let children = (try? window.arrayAttribute(.children) as [UIElement]?)??.count ?? -1
+            OSLog.main.log("Palette: few elements (\(items.count)); window \(role, privacy: .public)/\(subrole, privacy: .public) \(Int(focusedFrame.width))x\(Int(focusedFrame.height)) @\(Int(focusedFrame.minX)),\(Int(focusedFrame.minY)), \(children) child(ren), \(sheets.count) sheet(s)")
+        }
 
         if let pageURL {
             let title: String = (try? window.attribute(.title)) ?? ""
@@ -336,7 +375,15 @@ enum PaletteSource {
             collectMenuItems(in: menu, path: [title], into: &items)
         }
 
-        return items
+        // The Window menu lists every open window of the app (Zen's other
+        // profiles among them). The palette is about the focused window, so
+        // drop the entries that just switch to another window.
+        let windowTitles = Set(((try? app.windows()) ?? []).compactMap { window -> String? in
+            let title = clean((try? window.attribute(.title)) ?? "")
+            return title.isEmpty ? nil : title
+        })
+
+        return items.filter { !windowTitles.contains($0.label) }
     }
 
     private static func collectMenuItems(in node: UIElement, path: [String], into items: inout [PaletteItem]) {
@@ -401,7 +448,7 @@ enum PaletteSource {
             return false
         }
 
-        let actions = (try? element.actionsAsStrings()) ?? []
+        let actions = item.clickInsteadOfPress ? [] : (try? element.actionsAsStrings()) ?? []
 
         if actions.contains(Action.press.rawValue) {
             do {
