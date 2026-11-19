@@ -1,90 +1,73 @@
-# Scoot
+# Pressto
 
-_Meet **Scoot**, your friendly cursor teleportation and actuation tool._
+_A keyboard palette for every Mac app: press ⇧⌘H, type a few letters, press ↵._
 
-Scoot helps you efficiently move your mouse cursor, using keyboard shortcuts!
+Pressto makes the controls of any app searchable, the way [Pagecast](https://labs.nilleb.co/pagecast.html) does for web pages. It is a fork of [Scoot](https://github.com/mjrusso/scoot), Michael Russo's keyboard cursor tool, and keeps everything Scoot does: hint labels, the grid, freestyle mode. More at [labs.nilleb.co/pressto](https://labs.nilleb.co/pressto.html).
 
-For updates, [follow @mjrusso on Twitter](https://twitter.com/mjrusso).
+> The rename is in progress: the source, the app bundle (`Scoot.app`, `co.nillebco.scoot`) and the menu bar still say Scoot.
 
-## This fork (nillebco)
+## The palette
 
-A fork of Scoot used as the base for a **searchable palette** over the
-accessibility tree — the desktop counterpart of [pagecast](https://nilleb.co/pagecast/),
-which does the same for web pages. Upstream stays a hint/grid tool; this fork
-adds the query side.
+Press ⇧⌘H in any app. A search field opens over the focused window, listing:
 
-What differs from upstream:
-
-| Change | Why |
+| Group | What it holds |
 | --- | --- |
-| Bundle id `co.nillebco.scoot`, team `3KRL43SU3T` | its own Accessibility (TCC) entry, side by side with a Homebrew install |
-| `MACOSX_DEPLOYMENT_TARGET` 11.0 → 12.0 | Xcode 27 no longer builds for macOS 11 |
-| `Scoot/Fuzzy.swift` + `ScootTests/FuzzyTests.swift` | the matcher: token-AND subsequence search with start/word-boundary/consecutive bonuses, returning highlight ranges. No AppKit, no AX dependency, so it is testable on its own |
-| Debug → *Dump Accessibility Elements* | dumps every element of the focused window (role, subrole, title, description, valueDescription, identifier, value, enabled, frame) to `~/Library/Application Support/Scoot/element-dumps/` **and** the pasteboard |
-| Overlay lifecycle | the labels are hidden *and* the jump windows ordered out when Scoot goes to the background. Upstream relied on `windowDidResignMain`, which does not fire when an agent app is hidden, leaving labels stranded on screen |
-| AX attribute ownership | only the `AXEnhancedUserInterface` values Scoot itself switched on are reverted, tracked by PID + bundle id (upstream cleared every app's, and cleared nothing if it exited uncleanly) |
-| Element-mode wake-up | the flag is switched on at *invoke* as well as at launch, and the scan retries up to 8 × 350 ms while an app wakes its tree. Zen/Firefox exposes 6 stub nodes (3 untitled buttons) until the flag is on, then 1674 nodes / 164 actionable ones |
-| Accessibility prompt in Debug | a Debug build gets its own TCC entry, so it now asks for Accessibility; without the prompt the app never appears in System Settings and element mode silently finds nothing |
-| `SCOOT_DUMP_ELEMENTS=1` | same dump, written on every element-mode invoke, so the same app can be compared across runs |
+| Quick actions | copy the page address, as a Markdown link, or the page title (browsers) |
+| Window | the focused window's buttons, links, fields and tabs |
+| Tabs | browser tabs; in Zen and Firefox, matched by URL as well as title |
+| Menu | every item of the app's menu bar |
 
-The dump exists to answer one question before building any palette UI: *which
-text does the accessibility tree expose per app?* The matcher can only rank what
-is there.
+Type to rank all groups together, or narrow to one with a prefix: `>` actions, `#` window, `@` tabs, `/` menu (or `tab:`, `menu:`, …). ↑/↓ to move, ↵ to press. Rows are pressed through the accessibility API (`AXPress`), so they work on sheets and on controls that are covered or scrolled away.
 
-### Development
+The matcher (`Scoot/Fuzzy.swift`) requires every query token to be a subsequence and scores the best placement, with bonuses for the start of the string, word boundaries and consecutive runs: `cplmrg` finds "Complete merge", and `sfprag` finds the tab whose URL holds `sfp-rag-dev`.
+
+## Development
 
 ```sh
 scripts/dev                 # build, sign, relaunch
 scripts/dev --dump          # build, relaunch with SCOOT_DUMP_ELEMENTS=1
+scripts/test                # unit tests
 ```
 
-Grant Accessibility to the built app once; signing with an Apple Development
-identity keeps the grant across rebuilds (`SCOOT_SIGN_IDENTITY` overrides it).
+Grant Accessibility to the built app once; signing with an Apple Development identity keeps the grant across rebuilds (`SCOOT_SIGN_IDENTITY` overrides it). Debug → *Dump Accessibility Elements* writes every element of the focused window to `~/Library/Application Support/Scoot/element-dumps/` and the pasteboard.
 
-Tests: `scripts/test` runs the 45 unit tests (Tree, Fuzzy, geometry, grid,
-positionable).
+The unit-test bundle is **host-less**: the sources under test are compiled into the test bundle instead of being injected into the app. A hosted test whose host is a menu-bar agent (`LSUIElement`) makes Xcode 27's LaunchServices launcher abort with `Assertion failed: childPID > 0` before a single test runs; the same happens when a copy of the app is already running, which is why `scripts/test` stops any running instance first.
 
-The unit-test bundle is **host-less**: the sources under test are compiled into
-the test bundle instead of being injected into `Scoot.app`. That is deliberate —
-a hosted test whose host is a menu-bar agent (`LSUIElement`) makes Xcode 27's
-LaunchServices launcher abort with `Assertion failed: childPID > 0` in
-`IDELaunchServicesLauncher.m`, before a single test runs. The same assertion
-appears when a copy of the app is already running (LaunchServices returns no new
-PID), which is why `scripts/test` stops any running instance first.
+### Changes from Scoot
 
+Besides the palette:
 
-Licence: BSD-3-Clause, unchanged. Copyright (c) 2021-2026 Michael Russo.
-
-
-<img src="https://github.com/mjrusso/scoot/actions/workflows/main_test.yml/badge.svg" alt="build status"></a>
-
-<p align="center">
-  <img src="./Assets/card.png" alt="Scoot, MacOS Cursor Actuator" />
-</p>
+- the grid builds its cells by index, so no screen or cell size can crash it, and its cell size ranges over 30–200 pt;
+- element mode reaches web page content in Firefox-based browsers (frameless `AXWebArea` nodes are descended into; the tree is woken at invoke and rescanned while it fills in);
+- stacked buttons a few points apart keep their own labels;
+- clicks wait for the target app to activate, so buttons in alerts and sheets are pressed;
+- the labels are dismissed when the app is hidden, and ⌘Q dismisses the overlay instead of quitting;
+- only the `AXEnhancedUserInterface` flags the app itself switched on are reverted;
+- deployment target macOS 12, so it builds on Xcode 27.
 
 ---
 
-<img align="right" width="128" alt="Scoot App Icon" src="./Scoot/Assets.xcassets/AppIcon.appiconset/512.png" />
+<img align="right" width="128" alt="App icon" src="./Scoot/Assets.xcassets/AppIcon.appiconset/512.png" />
 
-Scoot is a tiny utility app that provides fast, keyboard-driven control over the mouse pointer. Scoot lets you move your mouse—and click and drag, too—all from the comfort of your keyboard.
+Pressto is a small utility app that provides fast, keyboard-driven control over the mouse pointer. Pressto lets you move your mouse—and click and drag, too—all from the comfort of your keyboard.
 
-Scoot supports two primary navigation modes: **element-based**, and **grid-based**.
+Pressto supports two primary navigation modes: **element-based**, and **grid-based**.
 
-* **Element-based navigation:** MacOS accessibility APIs are used to find user interface elements, such as buttons and links, on the user's screen. (In this mode, Scoot will look for elements in the focused window of the frontmost app.) Here, for example, Scoot has identified the only link on the page _("More information...")_, and assigned it the key sequence "aa":
+* **Element-based navigation:** MacOS accessibility APIs are used to find user interface elements, such as buttons and links, on the user's screen. (In this mode, Pressto will look for elements in the focused window of the frontmost app.) Here, for example, Pressto has identified the only link on the page _("More information...")_, and assigned it the key sequence "aa":
 
 <p align="center">
-  <img src="./Assets/Examples/element-nav.png" alt="Scoot using the element-based navigation mode" />
+  <img src="./Assets/Examples/element-nav.png" alt="Pressto using the element-based navigation mode" />
 </p>
 
 * **Grid-based navigation:** all connected screens are subdivided into a grid of equally-sized cells.
 
 <p align="center">
-  <img src="./Assets/Examples/grid-nav.png" alt="Scoot using the grid-based navigation mode" />
+  <img src="./Assets/Examples/grid-nav.png" alt="Pressto using the grid-based navigation mode" />
 </p>
 
 Each location is identified by a unique character sequence, making each element (or cell) uniquely addressable with the keyboard — simply type the associated key sequence to teleport your mouse cursor to that location.
 
-Scoot also supports moving the mouse cursor using text editing keyboard shortcuts that you're likely already familiar with (specifically, those for moving the insertion point). Scoot supports standard MacOS text editing shortcuts, as well as Emacs and vi keybindings. For a full breakdown, see the [usage documentation](#usage).
+Pressto also supports moving the mouse cursor using text editing keyboard shortcuts that you're likely already familiar with (specifically, those for moving the insertion point). Pressto supports standard MacOS text editing shortcuts, as well as Emacs and vi keybindings. For a full breakdown, see the [usage documentation](#usage).
 
 There's also a supplementary usage mode:
 
@@ -94,23 +77,23 @@ Freestyle mode is particularly handy for those cases where you want to quickly n
 
 ## About
 
-* This project started as an experiment: an attempt to craft a keyboard-driven mouse movement utility that's efficient, and (more importantly) that users will actually _want_ to use. It has met that bar, at least for the primary author. (Scoot may not be for you, and that's totally fine!)
+* Scoot, which Pressto is built on, started as an experiment: an attempt to craft a keyboard-driven mouse movement utility that's efficient, and (more importantly) that users will actually _want_ to use. Pressto adds search on top, for the controls you know by name rather than by position.
 
-* Scoot is _not_ intended to replace the mouse or trackpad entirely. It's here to augment them.
+* Pressto is _not_ intended to replace the mouse or trackpad entirely. It's here to augment them.
 
-* Scoot runs on MacOS 11 (Big Sur), and 12 (Monterey).
+* Pressto runs on macOS 12 (Monterey) and later.
 
-* Scoot is an AppKit app, written in Swift. (There's still some Carbon in here, too! [Yes][carbon-events], [really][carbon-accessibility].)
+* Pressto is an AppKit app, written in Swift. (There's still some Carbon in here, too! [Yes][carbon-events], [really][carbon-accessibility].)
 
-* Scoot complements mouse-related accessibility tools that ship as part of MacOS, such as [Mouse Keys][mouse-keys] and other [accessibility shortcuts][mac-accessibility-shortcuts], in addition to mouse emulation provided via keyboard firmware ([QMK][qmk-mouse-keys], for example).
+* Pressto complements mouse-related accessibility tools that ship as part of MacOS, such as [Mouse Keys][mouse-keys] and other [accessibility shortcuts][mac-accessibility-shortcuts], in addition to mouse emulation provided via keyboard firmware ([QMK][qmk-mouse-keys], for example).
 
 ## Usage
 
-To activate Scoot in the **element-based navigation mode**, use the ⇧⌘J global keyboard shortcut. Alternatively, to activate Scoot in the **grid-based navigation mode**, use the ⇧⌘K global keyboard shortcut. And for **freestyle mode**, use the ⇧⌘L global keyboard shortcut. (These shortcuts can be customized.)
+To activate Pressto in the **element-based navigation mode**, use the ⇧⌘J global keyboard shortcut. Alternatively, to activate Pressto in the **grid-based navigation mode**, use the ⇧⌘K global keyboard shortcut. And for **freestyle mode**, use the ⇧⌘L global keyboard shortcut. (These shortcuts can be customized.)
 
-As long as Scoot is running, any of these hotkeys will bring the app to the foreground, and activate the requested mode.
+As long as Pressto is running, any of these hotkeys will bring the app to the foreground, and activate the requested mode.
 
-When Scoot is in the foreground:
+When Pressto is in the foreground:
 
 * You can jump directly to a cell (a UI element, or a location in the grid, depending on the active navigation mode). Each cell is marked with a label (e.g. “aaa”, “aas”, “aad”); type the characters, one letter at a time, and, as soon as a complete sequence is entered, the mouse cursor will move directly to the center of the corresponding cell. (This approach, including the use of a char-based decision tree, is heavily inspired by [avy][avy].)
   * If you make a mistake while entering a label, hit the escape key (⎋) to cancel and start over. (Alternatively, you can type ⌘. or C-G.)
@@ -123,33 +106,33 @@ When Scoot is in the foreground:
 * You can click with the left mouse button (at the current cursor location) by hitting the Return (↵) key.
 
 * You can hold the left mouse button down by pressing `=`. (To release the button, press ↵.)
-  * To perform a drag-and-drop operation: situate the cursor above the object you want to drag and press `=`, then move the mouse cursor to the desired drag destination (using one or more of the mechanisms that Scoot makes available), and then press ↵ to perform the drop.
+  * To perform a drag-and-drop operation: situate the cursor above the object you want to drag and press `=`, then move the mouse cursor to the desired drag destination (using one or more of the mechanisms that Pressto makes available), and then press ↵ to perform the drop.
 
 * You can double-click with the left mouse button (at the current cursor location) by hitting the Shift and Return keys together (⇧↵).
 
 * You can scroll, by pressing the Shift key in conjunction with the arrow key (↑, ↓, ←, →) pointing in the desired scroll direction.
 
-After clicking, any overlaid UI elements (such as the element view, or the grid) will automatically hide. You can also hide these UI elements (and send Scoot to the background) at any time by pressing ⌘H.
+After clicking, any overlaid UI elements (such as the element view, or the grid) will automatically hide. You can also hide these UI elements (and send Pressto to the background) at any time by pressing ⌘H.
 
-Scoot includes a menu bar icon (an illustration of a Vespa-inspired scooter).
+Pressto includes a menu bar icon (an illustration of a Vespa-inspired scooter).
 
-<img align="right" width="256" alt="Scoot Menu Bar Icon" src="./Assets/menu-bar-icon.png" />
+<img align="right" width="256" alt="Pressto Menu Bar Icon" src="./Assets/menu-bar-icon.png" />
 
-* When Scoot is not active (i.e., running in the background), the icon will render in an outlined mode.
-* When Scoot is in the foreground, the icon will render with a fill (see screenshot), to make it clearer that Scoot is currently active. (This shouldn't generally be a concern, but it is especially handy when you're in freestyle mode.)
+* When Pressto is not active (i.e., running in the background), the icon will render in an outlined mode.
+* When Pressto is in the foreground, the icon will render with a fill (see screenshot), to make it clearer that Pressto is currently active. (This shouldn't generally be a concern, but it is especially handy when you're in freestyle mode.)
 * Additional options are exposed when clicking on the menu bar icon, including a _help_ menu item — which currently opens this README in the user's default browser.
 
-Scoot is fully compatible with Spaces (and can be used in conjunction with apps that are running in native fullscreen mode).
+Pressto is fully compatible with Spaces (and can be used in conjunction with apps that are running in native fullscreen mode).
 
-Scoot also works on systems with multiple connected displays.
+Pressto also works on systems with multiple connected displays.
 
 <p align="center">
-  <img src="./Assets/Examples/grid-multiple-displays.jpg" alt="Using Scoot with multiple connected displays" />
+  <img src="./Assets/Examples/grid-multiple-displays.jpg" alt="Using Pressto with multiple connected displays" />
 </p>
 
-_If you use multiple displays, and experience an issue with Scoot's windows drawing in an incorrect location when the app launches (e.g. all Scoot windows appearing on the same display), please post your findings [in this issue](https://github.com/mjrusso/scoot/issues/18), and note the value of your “Displays have separate Spaces” checkbox in Mission Control._ If you do happen to find yourself in this state, you should be able to fix the window arrangement by clicking Scoot's menu bar icon, then “Debug”, and finally “Rebuild Jump Windows”.
+_If you use multiple displays, and experience an issue with Pressto's windows drawing in an incorrect location when the app launches (e.g. all Pressto windows appearing on the same display), please post your findings [in this issue](https://github.com/mjrusso/scoot/issues/18), and note the value of your “Displays have separate Spaces” checkbox in Mission Control._ If you do happen to find yourself in this state, you should be able to fix the window arrangement by clicking Pressto's menu bar icon, then “Debug”, and finally “Rebuild Jump Windows”.
 
-To customize Scoot's settings, click Scoot's menu bar icon, then “Preferences…”, or type `⌘,` while Scoot is in the foreground. In addition to modifying keybindings, it is also possible to modify Scoot's appearance (including font sizes, colours, opacity, etc.).
+To customize Pressto's settings, click Pressto's menu bar icon, then “Preferences…”, or type `⌘,` while Pressto is in the foreground. In addition to modifying keybindings, it is also possible to modify Pressto's appearance (including font sizes, colours, opacity, etc.).
 
 ### Keybindings
 
@@ -157,29 +140,30 @@ _Not sure what these symbols mean? See the [symbol reference][what-are-those-mac
 
 #### Global Keybindings
 
-Global keybindings are always active, as long as Scoot is currently running.
+Global keybindings are always active, as long as Pressto is currently running.
 
 
 | Default Shortcut | Description                                              |
 |------------------|----------------------------------------------------------|
-| ⇧⌘J              | Use element-based navigation (bring Scoot to foreground) |
-| ⇧⌘K              | Use grid-based navigation (bring Scoot to foreground)    |
-| ⇧⌘L              | Use freestyle mode (bring Scoot to foreground)           |
+| ⇧⌘J              | Use element-based navigation (bring Pressto to foreground) |
+| ⇧⌘K              | Use grid-based navigation (bring Pressto to foreground)    |
+| ⇧⌘L              | Use freestyle mode (bring Pressto to foreground)           |
+| ⇧⌘H              | Open the command palette over the focused window           |
 
-All global keybindings are fully customizable. To modify the keybindings, click Scoot's menu bar icon, then “Preferences…”, and select the “Keybindings” tab.
+All global keybindings are fully customizable. To modify the keybindings, click Pressto's menu bar icon, then “Preferences…”, and select the “Keybindings” tab.
 
 #### Local Keybindings
 
-Local keybindings are only active when Scoot is active (i.e., when Scoot is in the foreground).
+Local keybindings are only active when Pressto is active (i.e., when Pressto is in the foreground).
 
-Note that vi keybindings are not enabled by default, and must be explicitly toggled on (click Scoot's menu bar icon, then “Preferences…”, select the “Keybindings” tab, and then change the keybinding mode). Emacs keybindings (and most system keybindings) are disabled when vi keybindings are active.
+Note that vi keybindings are not enabled by default, and must be explicitly toggled on (click Pressto's menu bar icon, then “Preferences…”, select the “Keybindings” tab, and then change the keybinding mode). Emacs keybindings (and most system keybindings) are disabled when vi keybindings are active.
 
 ##### General
 
 | Shortcut  | Alternate | Description                                                                                                       |
 |-----------|-----------|-------------------------------------------------------------------------------------------------------------------|
-| ⌘H        |           | Hide UI (bring Scoot to background)                                                                               |
-| ⎋ (or ⌘.) | C-g       | Cancel: if currently typing a label, clears all currently-typed characters; otherwise, brings Scoot to background |
+| ⌘H        |           | Hide UI (bring Pressto to background)                                                                               |
+| ⎋ (or ⌘. or ⌘Q) | C-g | Cancel: if currently typing a label, clears all currently-typed characters; otherwise, brings Pressto to background |
 
 
 _Note:_ ⎋ signifies the Escape key.
@@ -212,11 +196,11 @@ _Note:_ ⎋ signifies the Escape key.
 | [        | Click middle mouse button (at current cursor location)                 |
 | ]        | Click right mouse button (at current cursor location)                  |
 
-Scoot will pass along any pressed modifier keys when simulating clicks. This means that Command-click, Option-click, Control-click, and Shift-click are all supported (or any combination thereof). For example, ⌘↵ will Command-click the left mouse button at the current cursor location, ⌥↵ will Option-click, ⌃↵ will Control-click, ⇧↵ will Shift-click, etc.
+Pressto will pass along any pressed modifier keys when simulating clicks. This means that Command-click, Option-click, Control-click, and Shift-click are all supported (or any combination thereof). For example, ⌘↵ will Command-click the left mouse button at the current cursor location, ⌥↵ will Option-click, ⌃↵ will Control-click, ⇧↵ will Shift-click, etc.
 
-Scoot can't take control of the mouse cursor when a context menu is active (for example, after right clicking). However, system-provided keyboard shortcuts for selecting the item in a menu (such as ↑, ↓, ←, →, C-n, C-p, ↵) will work as expected.
+Pressto can't take control of the mouse cursor when a context menu is active (for example, after right clicking). However, system-provided keyboard shortcuts for selecting the item in a menu (such as ↑, ↓, ←, →, C-n, C-p, ↵) will work as expected.
 
-For simplicity, Scoot only supports simulating holding/ dragging, and double clicking, with the left mouse button. (If you have a use case that requires more exotic click handling, please [file an issue][scoot-issues] with details.)
+For simplicity, Pressto only supports simulating holding/ dragging, and double clicking, with the left mouse button. (If you have a use case that requires more exotic click handling, please [file an issue][scoot-issues] with details.)
 
 _Note:_ ↵ signifies the Return (a.k.a Enter) key. _(Sidenote: technically, Return and Enter are [two different keys][return-and-enter-are-two-different-keys].)_
 
@@ -235,24 +219,14 @@ _Note:_ ↵ signifies the Return (a.k.a Enter) key. _(Sidenote: technically, Ret
 |----------|--------------------------------------------|
 | ⌃=       | Toggle visibility of grid lines            |
 | ⌃⇧=      | Toggle visibility of grid labels           |
-| ⇧⌘=      | Increase size of grid cells                |
+| ⇧⌘=      | Increase size of grid cells (30–200 pt)    |
 | ⇧⌘-      | Decrease size of grid cells                |
 | ⌘=       | Increase contrast of user interface |
 | ⌘-       | Decrease contrast of user interface |
 
 ## Installation
 
-Scoot is available on [Homebrew](https://brew.sh):
-
-```bash
-brew install --cask scoot
-```
-
-Alternatively, you can manually download the app bundle:
-
-1. Download and extract [the latest build of Scoot][latest-scoot-binary].
-2. Drag the extracted _Scoot.app_ into your computer's _Applications_ folder.
-3. Double-click on _Scoot.app_ (from the _Applications_ folder) to launch it.
+There is no release yet. Build it from source (see [Development](#development)), then move the built app into _Applications_.
 
 ### Setup
 
@@ -262,7 +236,7 @@ On first run, you'll be presented with a prompt like the following:
   <img width="450" src="./Assets/Documentation/accessibility-prompt.png" alt="Scoot.app would like to control this computer using accessibility features" />
 </p>
 
-**Scoot will not work unless access is granted.** (Note that Scoot does not collect any user or usage-related information, and does not make any network requests. The app runs entirely locally, and treats its privileged access with the utmost respect.)
+**Pressto will not work unless access is granted.** (Note that Pressto does not collect any user or usage-related information, and does not make any network requests. The app runs entirely locally, and treats its privileged access with the utmost respect.)
 
 To grant this permission, click _“Open System Preferences”_. Next, click the lock in the bottom left corner (_“Click the lock to make changes”_).
 
@@ -270,15 +244,15 @@ To grant this permission, click _“Open System Preferences”_. Next, click the
   <img width="550" src="./Assets/Documentation/privacy-locked.png" alt="Locked accessibility settings" />
 </p>
 
-Finally, check _“Scoot.app”_ to give Scoot the ability to move your cursor, and to click, drag, and scroll.
+Finally, check _“Scoot.app”_ (the bundle still carries the old name) to give Pressto the ability to move your cursor, and to click, drag, and scroll.
 
 <p align="center">
   <img width="550" src="./Assets/Documentation/accessibility-access-granted.png" alt="Scoot.app granted accessibility access" />
 </p>
 
-See the [usage documentation](#usage) for details on how to use Scoot.
+See the [usage documentation](#usage) for details on how to use Pressto.
 
-If you're finding Scoot helpful, you may want to configure the app to launch automatically when you log in. To set this up, open System Preferences again, click _“Users & Groups”_, and then _“Login Items”_:
+If you're finding Pressto helpful, you may want to configure the app to launch automatically when you log in. To set this up, open System Preferences again, click _“Users & Groups”_, and then _“Login Items”_:
 
 <p align="center">
   <img width="550" src="./Assets/Documentation/login-items-locked.png" alt="Locked login items settings" />
@@ -287,7 +261,7 @@ If you're finding Scoot helpful, you may want to configure the app to launch aut
 As before, you'll need to click the lock in the bottom left corner to unlock this preference pane. Once unlocked, click the “+” button, and select _“Scoot.app”_ from the _Applications_ folder. Checking the _“Hide”_ checkbox is recommended.
 
 <p align="center">
-  <img width="550" src="./Assets/Documentation/start-automatically.png" alt="Scoot configured to start automatically" />
+  <img width="550" src="./Assets/Documentation/start-automatically.png" alt="Pressto configured to start automatically" />
 </p>
 
 If you encounter any problems, feel free to [file an issue][scoot-issues].
@@ -302,13 +276,13 @@ https://user-images.githubusercontent.com/100451/151269537-627cdccd-b1a1-45e1-82
 
 ### Drag and Drop
 
-Here's what it's like to drag and drop with Scoot, using the grid-based navigation mode:
+Here's what it's like to drag and drop with Pressto, using the grid-based navigation mode:
 
 https://user-images.githubusercontent.com/100451/118299332-9e6a2e00-b4ae-11eb-901d-79a212ce1d37.mp4
 
 For reference, the following key sequence was used to grab the file and drop it in a new location:
 
-- `⇧⌘K` to activate Scoot
+- `⇧⌘K` to activate Pressto
 - `kh` to jump cursor to cell
 - `=` to press and hold the left mouse button
 - `fd` to jump cursor to cell
@@ -316,18 +290,19 @@ For reference, the following key sequence was used to grab the file and drop it 
 
 ## Feature Backlog
 
-See the [issue tracker][scoot-issues]. Contributions welcome!
+See the [issue tracker][scoot-issues]. Fixes that apply to Scoot too are sent upstream ([mjrusso/scoot#61–#69](https://github.com/mjrusso/scoot/pulls?q=is%3Apr+author%3Anilleb)).
 
 ## License
 
-Scoot is released under the terms of the [BSD 3-Clause License](LICENSE).
+Pressto is released under the terms of the [BSD 3-Clause License](LICENSE). It is a fork of [Scoot](https://github.com/mjrusso/scoot) by Michael Russo; the original copyright notice is kept in the licence and in the app's About and Credits screens. The name was changed so the fork is never mistaken for Scoot, or for something its author endorses.
 
 Copyright (c) 2021-2026, [Michael Russo](https://mjrusso.com).
+Modifications copyright (c) 2026, nillebco.
 
 
 [latest-scoot-binary]: https://github.com/mjrusso/scoot/releases/latest/download/Scoot.app.zip
 [latest-scoot-release]: https://github.com/mjrusso/scoot/releases/latest
-[scoot-issues]: https://github.com/mjrusso/scoot/issues
+[scoot-issues]: https://github.com/nillebco/pressto/issues
 
 [carbon-events]: https://developer.apple.com/library/archive/documentation/Carbon/Conceptual/Carbon_Event_Manager/Intro/CarbonEventsIntro.html
 [carbon-accessibility]: https://developer.apple.com/documentation/applicationservices/carbon_accessibility
