@@ -50,9 +50,9 @@
                 <application id="hnw-xV-0zn" sceneMemberID="viewController">
                     <menu key="mainMenu" title="Main Menu" systemMenu="main" id="AYu-sK-qS6">
                         <items>
-                            <menuItem title="Scoot" id="5kV-Vb-QxS" userLabel="Scoot">
+                            <menuItem title="Pressto" id="5kV-Vb-QxS" userLabel="Pressto">
                                 <modifierMask key="keyEquivalentModifierMask"/>
-                                <menu key="submenu" title="Scoot" autoenablesItems="NO" id="Rkb-lU-63l">
+                                <menu key="submenu" title="Pressto" autoenablesItems="NO" id="Rkb-lU-63l">
                                     <items>
                                         <menuItem isSeparatorItem="YES" id="VOq-y0-SEH"/>
                                         <menuItem title="Hide" keyEquivalent="h" id="Olw-nP-bQN">

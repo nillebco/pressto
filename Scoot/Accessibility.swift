@@ -149,7 +149,7 @@ struct Accessibility {
         let bundleIdentifier = runningApp.bundleIdentifier ?? "<unknown>"
 
         guard let app = Application(runningApp) else {
-            OSLog.main.error("Cannot open an accessibility application for \(bundleIdentifier, privacy: .public) — is Scoot trusted for Accessibility?")
+            OSLog.main.error("Cannot open an accessibility application for \(bundleIdentifier, privacy: .public) — is Pressto trusted for Accessibility?")
             return elements
         }
 

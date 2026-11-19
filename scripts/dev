@@ -7,7 +7,7 @@
 #   scripts/dev            build, then open the app
 #   scripts/dev --dump     build, then run with SCOOT_DUMP_ELEMENTS=1, so every
 #                          element-mode invoke writes an accessibility dump to
-#                          ~/Library/Application Support/Scoot/element-dumps/
+#                          ~/Library/Application Support/Pressto/element-dumps/
 #
 # Notes:
 #
@@ -16,7 +16,7 @@
 #   no provisioning profile), and an ad-hoc signature changes on every build, so
 #   the app is re-signed here after building. Passing the identity to xcodebuild
 #   instead fails on the KeyboardShortcuts resource bundle, which has no team.
-# - The bundle identifier is co.nillebco.scoot, so this build and a Scoot
+# - The bundle identifier is co.nillebco.pressto, so this build and a Scoot
 #   installed from Homebrew keep separate Accessibility entries.
 
 set -eu
@@ -30,7 +30,7 @@ if [ -z "$IDENTITY" ]; then
         | sed -n 's/.*"\(Apple Development.*\)"/\1/p' | head -1)
 fi
 
-APP=".build/Build/Products/Debug/Scoot.app"
+APP=".build/Build/Products/Debug/Pressto.app"
 
 xcodebuild \
     -project Scoot.xcodeproj \
@@ -52,12 +52,12 @@ fi
 
 # Stop any previous instance; the executable path is what distinguishes this
 # build from a Homebrew install in /Applications.
-pkill -f "Products/Debug/Scoot.app/Contents/MacOS/Scoot" 2>/dev/null || true
+pkill -f "Products/Debug/(Scoot|Pressto).app/Contents/MacOS/" 2>/dev/null || true
 sleep 0.5
 
 if [ "${1:-}" = "--dump" ]; then
     echo "Launching with SCOOT_DUMP_ELEMENTS=1"
-    SCOOT_DUMP_ELEMENTS=1 "$ROOT/$APP/Contents/MacOS/Scoot" &
+    SCOOT_DUMP_ELEMENTS=1 "$ROOT/$APP/Contents/MacOS/Pressto" &
     exit 0
 fi
 

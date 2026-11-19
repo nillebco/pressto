@@ -6,7 +6,7 @@ _A keyboard palette for every Mac app: press ⇧⌘H, type a few letters, press 
 
 Pressto lets you reach anything on your Mac's screen from the keyboard: search for it by name, jump to it by a two-letter label, or steer the pointer there. It is built on [Scoot](https://github.com/mjrusso/scoot), Michael Russo's keyboard cursor tool, and keeps everything Scoot does. More at [pressto.app](https://pressto.app).
 
-> The rename is in progress: the source, the app bundle (`Scoot.app`, `co.nillebco.scoot`) and the menu bar still say Scoot.
+> The app is `Pressto.app` (`co.nillebco.pressto`); the source folders and Xcode target keep Scoot's names so fixes still apply upstream.
 
 ## Why this exists
 
@@ -51,7 +51,7 @@ Pressto asks for two kinds of access, both in **System Settings → Privacy & Se
 | **Accessibility** | once, at first launch | to see the controls of other apps and to press them, click and move the pointer. Nothing works without it. |
 | **Automation** | once per browser, the first time you open the palette over it (Safari, Chrome, Brave, Edge, Vivaldi) | to read the address of each open tab, so a tab can be found by its address and not only by its title |
 
-Automation is optional. If you click *Don't Allow*, tabs are still listed by title; you can change your mind later under Privacy & Security → Automation → Scoot (the bundle still carries the old name). Zen and Firefox need no Automation access: their tab addresses come from the session file they keep in your profile folder.
+Automation is optional. If you click *Don't Allow*, tabs are still listed by title; you can change your mind later under Privacy & Security → Automation → Pressto. Zen and Firefox need no Automation access: their tab addresses come from the session file they keep in your profile folder.
 
 Pressto reads tab addresses only for the window you're looking at, only when you open the palette, and never sends them anywhere: everything stays on your Mac.
 
@@ -238,7 +238,7 @@ To grant this permission, click _“Open System Preferences”_. Next, click the
   <img width="550" src="./Assets/Documentation/privacy-locked.png" alt="Locked accessibility settings" />
 </p>
 
-Finally, check _“Scoot.app”_ (the bundle still carries the old name) to give Pressto the ability to move your cursor, and to click, drag, and scroll.
+Finally, check _“Pressto.app”_ to give Pressto the ability to move your cursor, and to click, drag, and scroll.
 
 <p align="center">
   <img width="550" src="./Assets/Documentation/accessibility-access-granted.png" alt="Scoot.app granted accessibility access" />
@@ -252,7 +252,7 @@ If you're finding Pressto helpful, you may want to configure the app to launch a
   <img width="550" src="./Assets/Documentation/login-items-locked.png" alt="Locked login items settings" />
 </p>
 
-As before, you'll need to click the lock in the bottom left corner to unlock this preference pane. Once unlocked, click the “+” button, and select _“Scoot.app”_ from the _Applications_ folder. Checking the _“Hide”_ checkbox is recommended.
+As before, you'll need to click the lock in the bottom left corner to unlock this preference pane. Once unlocked, click the “+” button, and select _“Pressto.app”_ from the _Applications_ folder. Checking the _“Hide”_ checkbox is recommended.
 
 <p align="center">
   <img width="550" src="./Assets/Documentation/start-automatically.png" alt="Pressto configured to start automatically" />
@@ -294,7 +294,7 @@ scripts/dev --dump          # build, relaunch with SCOOT_DUMP_ELEMENTS=1
 scripts/test                # unit tests
 ```
 
-Grant Accessibility to the built app once; signing with an Apple Development identity keeps the grant across rebuilds (`SCOOT_SIGN_IDENTITY` overrides it). Debug → *Dump Accessibility Elements* writes every element of the focused window to `~/Library/Application Support/Scoot/element-dumps/` and the pasteboard.
+Grant Accessibility to the built app once; signing with an Apple Development identity keeps the grant across rebuilds (`SCOOT_SIGN_IDENTITY` overrides it). Debug → *Dump Accessibility Elements* writes every element of the focused window to `~/Library/Application Support/Pressto/element-dumps/` and the pasteboard.
 
 The unit-test bundle is **host-less**: the sources under test are compiled into the test bundle instead of being injected into the app. A hosted test whose host is a menu-bar agent (`LSUIElement`) makes Xcode 27's LaunchServices launcher abort with `Assertion failed: childPID > 0` before a single test runs; the same happens when a copy of the app is already running, which is why `scripts/test` stops any running instance first.
 

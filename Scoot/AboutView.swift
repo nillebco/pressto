@@ -9,7 +9,7 @@ struct AboutView: View {
                 Image(nsImage: NSImage(named: "AppIcon")!)
                 Text(Bundle.main.displayName!)
                     .font(.system(size: 26, weight: .heavy))
-                Text("MacOS Cursor Actuator")
+                Text("Press anything on your Mac by name")
                     .font(.system(size: 20, weight: .light)).italic()
                 Text("Version \(Bundle.main.version)")
                     .font(.system(size: 16, weight: .light))
@@ -17,7 +17,7 @@ struct AboutView: View {
             }
             Group {
                 Spacer()
-                Text("Scoot helps you efficiently move your mouse cursor, using keyboard shortcuts.\n\nFor updates, follow [@mjrusso](https://twitter.com/mjrusso) on Twitter.")
+                Text("Pressto lets you reach any button, menu or tab from the keyboard: search it by name, jump to it by label, or steer the pointer there.\n\nBuilt on [Scoot](https://github.com/mjrusso/scoot) by Michael Russo.")
                     .font(.callout)
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
@@ -25,8 +25,8 @@ struct AboutView: View {
             }
             Group {
                 Spacer()
-                Link("github.com/mjrusso/scoot", destination: URL(string: "https://github.com/mjrusso/scoot")! )
-                Link("mjrusso.com", destination: URL(string: "https://mjrusso.com")! )
+                Link("pressto.app", destination: URL(string: "https://pressto.app")! )
+                Link("github.com/nillebco/pressto", destination: URL(string: "https://github.com/nillebco/pressto")! )
                 Spacer()
             }
             Group {

@@ -1,3 +1,5 @@
+Pressto is a fork of Scoot by Michael Russo: https://github.com/nillebco/pressto
+
 Scoot is open source software, released under the terms of the BSD 3-Clause
 License.
 

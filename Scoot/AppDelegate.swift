@@ -52,7 +52,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ aNotification: Notification) {
 
-        OSLog.main.log("Scoot: applicationDidFinishLaunching")
+        OSLog.main.log("Pressto: applicationDidFinishLaunching")
 
         #if DEBUG
         guard !isRunningTests && !isRunningSwiftUIPreviews else {
@@ -68,7 +68,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             func showAlert(completion: (Bool) -> Void) {
                 let alert = NSAlert()
                 alert.messageText = "Accessibility Permission Required"
-                alert.informativeText = "Please re-launch Scoot after authorizing."
+                alert.informativeText = "Please re-launch Pressto after authorizing."
                 alert.alertStyle = .critical
                 alert.addButton(withTitle: "View Documentation")
                 alert.addButton(withTitle: "Exit")
@@ -129,7 +129,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ aNotification: Notification) {
         #if DEBUG
-        OSLog.main.log("Scoot: applicationWillTerminate")
+        OSLog.main.log("Pressto: applicationWillTerminate")
         #endif
 
         // FIXME: Only remove `AXEnhancedUserInterface` attributes that Scoot
@@ -229,7 +229,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let hostingController = NSHostingController(rootView: self.settingsView)
 
         let window = NSWindow(contentViewController: hostingController)
-        window.title = "Scoot Preferences"
+        window.title = "Pressto Preferences"
 
         return NSWindowController(window: window)
     }()
@@ -335,7 +335,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         guard let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
             return nil
         }
-        let directory = base.appendingPathComponent("Scoot/element-dumps", isDirectory: true)
+        let directory = base.appendingPathComponent("Pressto/element-dumps", isDirectory: true)
         do {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             return directory
@@ -400,7 +400,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func bringToForeground() {
         self.currentApp = NSWorkspace.shared.frontmostApplication
 
-        OSLog.main.log("Scoot invoked with frontmost app: \(String(describing: self.currentApp?.localizedName ?? "<unknown>"), privacy: .private(mask: .hash))")
+        OSLog.main.log("Pressto invoked with frontmost app: \(String(describing: self.currentApp?.localizedName ?? "<unknown>"), privacy: .private(mask: .hash))")
 
         let activeJumpMode = self.inputWindow.activeJumpMode
 
