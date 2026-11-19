@@ -165,13 +165,7 @@ struct Accessibility {
             return elements
         }
 
-        func traverse(node: UIElement, depth: Int = 0) {
-
-            // Guard against pathological trees. AX has no cycles in practice,
-            // but a misbehaving app can nest very deeply.
-            guard depth < 64 else {
-                return
-            }
+        func traverse(node: UIElement) {
 
             guard let children: [UIElement] = try? node.arrayAttribute(.children) else {
                 return
@@ -193,17 +187,23 @@ struct Accessibility {
                 // makes element mode see browser chrome only.
                 if let frame: CGRect = try? child.attribute(.frame) {
 
+                    // Ignore any elements that don't intersect with the window
+                    // bounds, along with their subtrees.
+                    guard focusedWindowFrame.intersects(frame) else {
+                        continue
+                    }
+
                     let convertedFrame = frame.convertToCocoa()
 
-                    // Ignore any elements that don't intersect the window
-                    // bounds, and elements that fall between displays.
+                    // A control straddling two displays is kept and assigned to
+                    // the first one it overlaps.
                     let screen = NSScreen.screens.first(where: {
                         $0.frame.intersects(convertedFrame)
                     })
 
                     let role: Role? = try? child.role()
 
-                    if let role = role, let screen = screen, focusedWindowFrame.intersects(frame) {
+                    if let role = role, let screen = screen {
 
                         switch role {
                         case .cell, .button, .radioButton, .link, .checkBox, .slider, .popUpButton, .menuButton, .incrementor, .handle:
@@ -223,7 +223,7 @@ struct Accessibility {
                     }
                 }
 
-                traverse(node: child, depth: depth + 1)
+                traverse(node: child)
             }
 
         }
