@@ -2,7 +2,9 @@ import AppKit
 import Compression
 import OSLog
 
-/// Tab URLs for Firefox-family browsers, read from their session store.
+/// Tab URLs for browsers whose accessibility tree gives a tab's title but not
+/// its address: Firefox-family browsers through their session store, Safari and
+/// Chromium browsers through AppleScript.
 ///
 /// Zen and Firefox expose a tab in the accessibility tree by title only — no
 /// URL — so a tab whose URL holds the interesting word (a Terraform workspace
@@ -19,7 +21,16 @@ enum BrowserSessions {
     ]
 
     static func supports(_ bundleIdentifier: String?) -> Bool {
-        bundleIdentifier.map { profileRoots[$0] != nil } ?? false
+        bundleIdentifier.map { profileRoots[$0] != nil || ScriptableBrowsers.supports($0) } ?? false
+    }
+
+    /// Starts reading tab URLs and returns a function that waits for them, so the
+    /// AppleScript round trip (~100 ms) overlaps the accessibility scan.
+    static func beginReadingURLs(for bundleIdentifier: String) -> () -> [String: [URL]] {
+        if ScriptableBrowsers.supports(bundleIdentifier) {
+            return ScriptableBrowsers.beginReadingFrontWindow(of: bundleIdentifier)
+        }
+        return { urlsByTitle(for: bundleIdentifier) }
     }
 
     /// URLs keyed by tab title, in session order. Titles repeat ("Sign out",
@@ -131,5 +142,98 @@ enum BrowserSessions {
         }
 
         return written == size ? output : nil
+    }
+}
+
+/// Safari and Chromium browsers answer AppleScript with every tab's title and
+/// URL. The first request asks the user, once per browser, to let Pressto
+/// control it (Privacy & Security → Automation); until then, or if they decline,
+/// tabs are still listed, just without their address.
+enum ScriptableBrowsers {
+
+    /// The scripting property that holds a tab's title: Safari calls it `name`.
+    private static let titleProperty: [String: String] = [
+        "com.apple.Safari": "name",
+        "com.apple.SafariTechnologyPreview": "name",
+        "com.google.Chrome": "title",
+        "com.google.Chrome.beta": "title",
+        "com.brave.Browser": "title",
+        "com.microsoft.edgemac": "title",
+        "com.vivaldi.Vivaldi": "title",
+    ]
+
+    static func supports(_ bundleIdentifier: String) -> Bool {
+        titleProperty[bundleIdentifier] != nil
+    }
+
+    /// Runs `osascript` rather than NSAppleScript, which must stay on the main
+    /// thread; the palette scans on a background queue. JXA, because it returns
+    /// JSON, and one bulk request per property (`tabs.title()`), because
+    /// per-tab calls cost one Apple event each.
+    static func beginReadingFrontWindow(of bundleIdentifier: String, timeout: TimeInterval = 0.4) -> () -> [String: [URL]] {
+
+        guard let property = titleProperty[bundleIdentifier] else {
+            return { [:] }
+        }
+
+        let script = """
+        const app = Application('\(bundleIdentifier)');
+        const tabs = app.windows[0].tabs;
+        JSON.stringify({ titles: tabs.\(property)(), urls: tabs.url() });
+        """
+
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        process.arguments = ["-l", "JavaScript", "-e", script]
+        let output = Pipe()
+        process.standardOutput = output
+        process.standardError = Pipe()
+
+        let started = Date()
+        do {
+            try process.run()
+        } catch {
+            OSLog.main.error("Palette: cannot run osascript: \(error.localizedDescription, privacy: .public)")
+            return { [:] }
+        }
+
+        // Drain the pipe while the script runs: a few hundred tabs overflow its
+        // buffer, and osascript would block writing until the timeout.
+        var data = Data()
+        let finished = DispatchSemaphore(value: 0)
+        DispatchQueue.global(qos: .userInitiated).async {
+            data = output.fileHandleForReading.readDataToEndOfFile()
+            process.waitUntilExit()
+            finished.signal()
+        }
+
+        return {
+            guard finished.wait(timeout: .now() + max(0, timeout - Date().timeIntervalSince(started))) == .success else {
+                // Most likely the Automation prompt is on screen. The script is left
+                // running so the user's answer is recorded; the palette shows the
+                // tabs without addresses this time.
+                OSLog.main.log("Palette: no tab URLs from \(bundleIdentifier, privacy: .public) within \(timeout)s")
+                return [:]
+            }
+            guard process.terminationStatus == 0 else {
+                OSLog.main.log("Palette: \(bundleIdentifier, privacy: .public) refused tab URLs (exit \(process.terminationStatus)); allow it under Privacy & Security → Automation")
+                return [:]
+            }
+
+            guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let titles = json["titles"] as? [String],
+                  let addresses = json["urls"] as? [Any] else {
+                return [:]
+            }
+
+            var urls = [String: [URL]]()
+            for (title, address) in zip(titles, addresses) {
+                if let address = address as? String, let url = URL(string: address) {
+                    urls[title, default: []].append(url)
+                }
+            }
+            OSLog.main.log("Palette: read \(titles.count) tab URL(s) from \(bundleIdentifier, privacy: .public) in \(Int(Date().timeIntervalSince(started) * 1000)) ms")
+            return urls
+        }
     }
 }

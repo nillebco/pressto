@@ -102,10 +102,16 @@ enum PaletteSource {
         try? app.setAttribute("AXManualAccessibility", value: true)
 
         let started = Date()
+
+        // Started before the scan so the AppleScript round trip overlaps it.
+        let tabURLs = runningApp.bundleIdentifier.flatMap { bundleIdentifier in
+            BrowserSessions.supports(bundleIdentifier) ? BrowserSessions.beginReadingURLs(for: bundleIdentifier) : nil
+        }
+
         var items = elementItems(of: app)
 
-        if let bundleIdentifier = runningApp.bundleIdentifier, BrowserSessions.supports(bundleIdentifier) {
-            items = withTabAddresses(items, from: BrowserSessions.urlsByTitle(for: bundleIdentifier))
+        if let tabURLs {
+            items = withTabAddresses(items, from: tabURLs())
         }
 
         OSLog.main.log("Palette: \(items.count) element(s), \(items.filter { $0.kind == .tab }.count) tab(s), page commands: \(items.contains { $0.kind == .command } ? "yes" : "no", privacy: .public) for \(runningApp.bundleIdentifier ?? "<unknown>", privacy: .public) in \(Int(Date().timeIntervalSince(started) * 1000)) ms")
