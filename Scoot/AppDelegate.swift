@@ -27,6 +27,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     var jumpWindowControllers = [JumpWindowController]()
 
+    /// A mouse action waiting for the target app to become active (see
+    /// `bringToBackground(then:)`).
+    private var pendingActivation: (observer: NSObjectProtocol, timeout: DispatchWorkItem)?
+
     var jumpWindows: [JumpWindow] {
         jumpWindowControllers.compactMap { $0.window as? JumpWindow }
     }
@@ -400,6 +404,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: Activation
 
     func bringToForeground() {
+        cancelPendingActivation()
+
         self.currentApp = NSWorkspace.shared.frontmostApplication
 
         OSLog.main.log("Pressto invoked with frontmost app: \(String(describing: self.currentApp?.localizedName ?? "<unknown>"), privacy: .private(mask: .hash))")
@@ -565,28 +571,58 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         jumpWindows.forEach { $0.orderOut(nil) }
 
         NSApp.hide(self)
-
-        waitUntilTargetIsActive()
     }
 
-    /// `NSApp.hide` is asynchronous: the click that follows it used to land
-    /// while the target app was still inactive. Ordinary windows accept that
-    /// first click, but the buttons of a modal alert or sheet do not — the
-    /// click only activated the app, and "Don't Save" was never pressed.
-    private func waitUntilTargetIsActive(timeout: TimeInterval = 0.5) {
-        guard let target = currentApp else {
+    /// Hides Scoot, then runs `action` once the target app is active.
+    ///
+    /// `NSApp.hide` is asynchronous: a click posted right after it lands while
+    /// the target app is still inactive. Ordinary windows accept that first
+    /// click, but the buttons of a modal alert or sheet do not: the click only
+    /// activates the app, and "Don't Save" is never pressed.
+    func bringToBackground(then action: @escaping @MainActor () -> Void) {
+        bringToBackground()
+
+        cancelPendingActivation()
+
+        guard let target = currentApp,
+              NSWorkspace.shared.frontmostApplication?.processIdentifier != target.processIdentifier else {
+            action()
             return
         }
 
-        let deadline = Date().addingTimeInterval(timeout)
+        let pid = target.processIdentifier
+        var fired = false
 
-        while NSWorkspace.shared.frontmostApplication?.processIdentifier != target.processIdentifier,
-              Date() < deadline {
-            RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.01))
+        let fire: @MainActor () -> Void = { [weak self] in
+            guard !fired else { return }
+            fired = true
+            self?.cancelPendingActivation()
+            action()
         }
 
-        // Activation precedes the window becoming key by a beat.
-        RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.05))
+        let observer = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didActivateApplicationNotification,
+            object: nil,
+            queue: .main
+        ) { notification in
+            let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
+            guard app?.processIdentifier == pid else { return }
+            MainActor.assumeIsolated { fire() }
+        }
+
+        // The target may never become frontmost (for example, when `currentApp`
+        // has quit); post the action anyway rather than dropping it.
+        let timeout = DispatchWorkItem { MainActor.assumeIsolated { fire() } }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: timeout)
+
+        pendingActivation = (observer, timeout)
+    }
+
+    private func cancelPendingActivation() {
+        guard let pending = pendingActivation else { return }
+        NSWorkspace.shared.notificationCenter.removeObserver(pending.observer)
+        pending.timeout.cancel()
+        pendingActivation = nil
     }
 
     /// Safety net: never leave the overlay up when Scoot is no longer active
