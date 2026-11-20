@@ -55,9 +55,24 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
+    /// The last app other than Pressto to become active, so the menu bar's
+    /// element dump has a target even before Pressto was ever invoked.
+    private var lastExternalApp: NSRunningApplication?
+
     func applicationDidFinishLaunching(_ aNotification: Notification) {
 
         OSLog.main.log("Pressto: applicationDidFinishLaunching")
+
+        lastExternalApp = NSWorkspace.shared.frontmostApplication.flatMap { $0 == .current ? nil : $0 }
+        NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didActivateApplicationNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
+                  app != .current else { return }
+            MainActor.assumeIsolated { self?.lastExternalApp = app }
+        }
 
         #if DEBUG
         guard !isRunningTests && !isRunningSwiftUIPreviews else {
@@ -417,7 +432,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @IBAction func dumpAccessibilityElementsPressed(_ sender: Any) {
-        let candidate = currentApp ?? NSWorkspace.shared.frontmostApplication
+        let candidate = currentApp ?? lastExternalApp ?? NSWorkspace.shared.frontmostApplication
         let isSelf = candidate?.processIdentifier == ProcessInfo.processInfo.processIdentifier
 
         guard dumpAccessibilityElements(of: isSelf ? nil : candidate) != nil else {

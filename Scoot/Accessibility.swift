@@ -307,7 +307,9 @@ struct Accessibility {
                 let description: String = (try? child.attribute(.description)) ?? ""
                 let valueDescription: String = (try? child.attribute(.valueDescription)) ?? ""
                 let identifier: String = (try? child.attribute(.identifier)) ?? ""
-                let value: String = (try? child.attribute(.value)) ?? ""
+                // Read as Any: AXSwift force-casts, and `AXValue` is a number or a
+                // range on many web elements (Zen crashed here).
+                let value: String = ((try? child.attribute(.value) as Any?) ?? nil).map { "\($0)" } ?? ""
                 let enabled: Bool = (try? child.attribute(.enabled)) ?? false
                 let frame: CGRect = (try? child.attribute(.frame)) ?? .zero
 
