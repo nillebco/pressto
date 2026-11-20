@@ -5,7 +5,7 @@ import SwiftUI
 
 @main
 @MainActor
-class AppDelegate: NSObject, NSApplicationDelegate {
+class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @IBOutlet weak var menu: NSMenu!
 
@@ -318,6 +318,31 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         )
         item.target = self
         debugMenu.addItem(item)
+
+        let accessibilityItem = NSMenuItem(
+            title: "Open Accessibility Settings…",
+            action: #selector(openAccessibilitySettingsPressed(_:)),
+            keyEquivalent: ""
+        )
+        accessibilityItem.target = self
+        let settingsIndex = menu.items.firstIndex { $0.title == "Settings…" }
+        menu.insertItem(accessibilityItem, at: settingsIndex.map { $0 + 1 } ?? menu.items.count)
+        self.accessibilitySettingsMenuItem = accessibilityItem
+        menu.delegate = self
+    }
+
+    private weak var accessibilitySettingsMenuItem: NSMenuItem?
+
+    /// Shown only while access is missing; checked live, since it can be
+    /// granted (or revoked) after launch.
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        accessibilitySettingsMenuItem?.isHidden = Accessibility.checkIfProcessIsTrusted()
+    }
+
+    /// Where to re-grant access after a rebuild under a new signing identity
+    /// (red menu bar icon).
+    @objc func openAccessibilitySettingsPressed(_ sender: NSMenuItem) {
+        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
     }
 
     /// Finds a submenu by title, at any depth.
@@ -480,8 +505,22 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         paletteGeneration += 1
         let generation = paletteGeneration
 
+        // The flag set at launch can be gone (another Scoot build clears it on
+        // every app when it quits); Firefox/Zen then expose only stub buttons.
+        let waking = !Accessibility.enableEnhancedUserInterfaceIfNecessary(for: app)
+
         NSApp.activate(ignoringOtherApps: true)
         palette.show(items: menuItemCache[pid] ?? [], over: windowFrame)
+
+        scanPalette(of: app, generation: generation, waking: waking)
+    }
+
+    /// Fills the palette with the window's controls, retrying like
+    /// `scanElements` while a just-woken accessibility tree is still filling in.
+    private func scanPalette(of app: NSRunningApplication, generation: Int, waking: Bool, attempt: Int = 1) {
+
+        let pid = app.processIdentifier
+        let maximumAttempts = 8
 
         DispatchQueue.global(qos: .userInteractive).async { [weak self] in
             let windowItems = PaletteSource.windowItems(for: app)
@@ -496,6 +535,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     return
                 }
                 self.palette.update(items: windowItems + menuItems)
+
+                guard waking, windowItems.count < 10, attempt < maximumAttempts else {
+                    return
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                    self.scanPalette(of: app, generation: generation, waking: true, attempt: attempt + 1)
+                }
             }
         }
     }

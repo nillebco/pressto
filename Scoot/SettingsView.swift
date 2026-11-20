@@ -107,6 +107,7 @@ struct KeybindingsSettingsView: View {
 
                 OSLog.main.log("Now using \(keybindingMode.rawValue, privacy: .public) keybindings.")
             }
+            KeyboardShortcuts.Recorder(for: .showPalette).formLabel(Text("Palette:"))
             KeyboardShortcuts.Recorder(for: .useElementBasedNavigation).formLabel(Text("Element-Based Navigation:"))
             KeyboardShortcuts.Recorder(for: .useGridBasedNavigation).formLabel(Text("Grid-Based Navigation:"))
             KeyboardShortcuts.Recorder(for: .useFreestyleNavigation).formLabel(Text("Freestyle Navigation:"))
