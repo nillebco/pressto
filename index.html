@@ -70,6 +70,21 @@ section { margin: 4.5rem 0; }
 .cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
 @media (max-width: 640px) { .cards { grid-template-columns: 1fr; } header nav a:not(:last-child) { display: none; } }
 .card .icon { font-size: 1.5rem; margin-bottom: .4rem; }
+.stage .caption { text-align: center; color: var(--muted); font-size: .88rem; margin: 1.1rem 0 0; }
+.scopes { max-width: 34rem; margin: 0 auto; border-collapse: collapse; width: 100%; }
+.scopes td { padding: .55rem .4rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+.scopes td:first-child { white-space: nowrap; width: 1%; padding-right: 1rem; }
+.scopes td:last-child { color: var(--muted); }
+.keys { text-align: center; color: var(--muted); font-size: .95rem; margin: 1.5rem auto 0; max-width: 34rem; }
+.limits { max-width: 42rem; margin: 0 auto; padding-left: 1.2rem; color: var(--muted); }
+.limits li { margin: .5rem 0; }
+.limits b { color: var(--fg); font-weight: 600; }
+.get { max-width: 42rem; margin: 0 auto; }
+.get ol { padding-left: 1.2rem; }
+.get li { margin: .6rem 0; }
+code { font: .85em ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--accent-soft); border-radius: 5px; padding: .05em .35em; overflow-wrap: anywhere; }
+pre code { background: none; padding: 0; font-size: inherit; }
+pre { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: .8rem 1rem; overflow-x: auto; font: .88rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; margin: .5rem 0; }
 .faq { max-width: 42rem; margin: 0 auto; }
 .faq details { border-bottom: 1px solid var(--border); padding: .9rem 0; }
 .faq summary { cursor: pointer; font-weight: 600; }
@@ -82,59 +97,102 @@ footer a { color: var(--muted); }
 <main>
   <header>
     <a class="brand" href="/"><span class="logo">P</span>Pressto</a>
-    <nav><a href="#how">How it works</a><a href="#faq">FAQ</a><a href="https://github.com/nillebco/pressto">GitHub</a></nav>
+    <nav><a href="#how">How it works</a><a href="#get">Get it</a><a href="#faq">FAQ</a><a href="https://github.com/nillebco/pressto">GitHub</a></nav>
   </header>
 
   <div class="hero">
     <h1>Press any button<br>on your Mac <em>by name</em>.</h1>
-    <p class="lead">Press <kbd>⇧⌘H</kbd>, type a few letters of what you want — a button, a menu item, a browser tab — and press <kbd>↵</kbd>. No hunting with the mouse.</p>
+    <p class="lead">Press <kbd>⇧⌘H</kbd>, type a few letters of what you want — a button, a menu item, a browser tab — and press <kbd>↵</kbd>. It works in any app, with no mouse.</p>
     <div class="cta">
-      <a class="btn primary" href="https://github.com/nillebco/pressto">Follow on GitHub</a>
-      <a class="btn ghost" href="#how">See how it works</a>
+      <a class="btn primary" href="#get">Get Pressto</a>
+      <a class="btn ghost" href="https://github.com/nillebco/pressto">Source on GitHub</a>
     </div>
-    <p class="note">Free for macOS 12 and later. A signed download is on its way.</p>
+    <p class="note">Free and open source, for macOS 12 and later. For now you build it yourself; a signed download is coming.</p>
   </div>
 
-  <div class="stage" aria-label="Example: typing cplmrg finds Complete merge">
+  <div class="stage" aria-label="Example: typing cplmrg finds the Complete merge button">
     <div class="window-dots"><i></i><i></i><i></i></div>
     <div class="palette">
       <div class="query"><span aria-hidden="true">🔍</span><span class="typed">cplmrg</span><span class="caret"></span></div>
       <ul class="rows">
-        <li class="sel"><span class="what"><b>C</b>om<b>pl</b>ete <b>m</b>e<b>rg</b>e<span class="sub">Pull request · Window</span></span><span class="tag">button</span></li>
-        <li><span class="what"><b>C</b>om<b>pl</b>ete <b>m</b>e<b>rg</b>e when checks pass<span class="sub">Pull request ▸ Merge · Menu</span></span><span class="tag">menu</span></li>
+        <li class="sel"><span class="what"><b>C</b>om<b>pl</b>ete <b>m</b>e<b>rg</b>e<span class="sub">Window</span></span><span class="tag">button</span></li>
       </ul>
     </div>
+    <p class="caption">The letters only have to appear in order. Letters that sit close together rank higher than scattered ones, so six keystrokes find the merge button on a busy pull-request page.</p>
   </div>
 
   <section id="how">
     <h2>Three keystrokes, any app</h2>
-    <p class="section-lead">Pressto reads the same description of the screen that VoiceOver uses, so it works in apps that were never designed for it.</p>
+    <p class="section-lead">Pressto reads the description of the screen that macOS builds for VoiceOver, so it works in apps that were never designed for it — native apps, Electron apps and web pages alike.</p>
     <div class="steps">
-      <div class="step"><h3>Open</h3><p><kbd>⇧⌘H</kbd> opens the palette over the window you are using, on the right display.</p></div>
-      <div class="step"><h3>Type</h3><p>A few letters are enough: initials, part of a word, part of a web address. Results rank as you type.</p></div>
-      <div class="step"><h3>Press</h3><p><kbd>↵</kbd> presses the button for real — even one hidden behind a dialog or scrolled out of view.</p></div>
+      <div class="step"><h3>Open</h3><p><kbd>⇧⌘H</kbd> opens the palette over the window you're using. The list fills in within a fraction of a second.</p></div>
+      <div class="step"><h3>Type</h3><p>Initials, part of a word or part of a web address. Results re-rank with every key; <kbd>↑</kbd> <kbd>↓</kbd> move the selection.</p></div>
+      <div class="step"><h3>Press</h3><p><kbd>↵</kbd> brings the app back to the front and presses the item. Text fields get the focus; buttons that refuse a direct press get a real click.</p></div>
     </div>
   </section>
 
   <section>
     <h2>What you can reach</h2>
-    <p class="section-lead">One list, grouped so you can tell things apart.</p>
+    <p class="section-lead">Everything goes into one list. With an empty search it is grouped by section; as you type it becomes a single ranked list.</p>
     <div class="cards">
-      <div class="card"><div class="icon">🪟</div><h3>Window controls</h3><p>Every button, link, checkbox and field in the window in front of you.</p></div>
-      <div class="card"><div class="icon">☰</div><h3>Menu bar</h3><p>Every item of the app's menus, without opening them one by one.</p></div>
-      <div class="card"><div class="icon">🗂️</div><h3>Browser tabs</h3><p>Jump to a tab by its title or by its address, in Safari, Chrome, Brave, Edge, Firefox and Zen.</p></div>
-      <div class="card"><div class="icon">⚡</div><h3>Quick actions</h3><p>Copy the current page's address, its title, or a ready-made Markdown link.</p></div>
+      <div class="card"><div class="icon">🪟</div><h3>Window controls</h3><p>Buttons, links, checkboxes, pop-ups, sliders and text fields that are visible in the front window, including the buttons of a sheet or dialog on top of it.</p></div>
+      <div class="card"><div class="icon">☰</div><h3>Menu bar</h3><p>Every enabled item of the app's menus, shown with its path (<i>History › Recently Closed Tabs</i>), without opening them one by one.</p></div>
+      <div class="card"><div class="icon">🗂️</div><h3>Browser tabs</h3><p>Switch tabs by title — or by address in Safari, Chrome, Brave, Edge, Vivaldi, Firefox and Zen, so a PR number or a hostname finds its tab.</p></div>
+      <div class="card"><div class="icon">⚡</div><h3>Quick actions</h3><p>On a web page: copy its address, its title, or a ready-made Markdown link.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Narrow the search</h2>
+    <p class="section-lead">Start with a symbol (or a word followed by a colon) to search a single section.</p>
+    <table class="scopes">
+      <tr><td><kbd>@</kbd> or <kbd>tab:</kbd></td><td>Browser tabs, by title or address — <kbd>@ pull 112</kbd></td></tr>
+      <tr><td><kbd>#</kbd> or <kbd>win:</kbd></td><td>Controls of the front window</td></tr>
+      <tr><td><kbd>/</kbd> or <kbd>menu:</kbd></td><td>The menu bar</td></tr>
+      <tr><td><kbd>&gt;</kbd> or <kbd>do:</kbd></td><td>Quick actions</td></tr>
+    </table>
+    <p class="keys"><kbd>↑</kbd> <kbd>↓</kbd> or <kbd>⌃P</kbd> <kbd>⌃N</kbd> to move · <kbd>↵</kbd> to press · <kbd>⎋</kbd> to close</p>
+  </section>
+
+  <section>
+    <h2>What it can't reach</h2>
+    <p class="section-lead">Pressto only knows what an app tells macOS. A few things fall through:</p>
+    <ul class="limits">
+      <li><b>Unnamed icon buttons.</b> A button with no title or description has nothing to type, so the palette leaves it out. Use hint labels (<kbd>⇧⌘J</kbd>) for those.</li>
+      <li><b>Things off screen.</b> Only what is visible in the front window is listed — scroll first. Browser tabs are the exception: the whole tab list is searchable.</li>
+      <li><b>Typos.</b> The search forgives missing letters, not wrong ones: <kbd>mrege</kbd> won't find <i>Merge</i>.</li>
+      <li><b>Apps with poor accessibility.</b> Games, some cross-platform toolkits and canvas-drawn apps describe little or nothing to macOS. The keyboard grid (<kbd>⇧⌘K</kbd>) still works there.</li>
+    </ul>
+  </section>
+
+  <section id="get">
+    <h2>Get Pressto</h2>
+    <p class="section-lead">There is no release yet. Building it takes a couple of minutes and needs Xcode.</p>
+    <div class="get">
+      <ol>
+        <li>Clone the source and build it:
+<pre>git clone https://github.com/nillebco/pressto.git
+cd pressto
+scripts/dev</pre>
+          <code>scripts/dev</code> builds the app, signs it with your Apple Development certificate if you have one, and launches it.</li>
+        <li>When macOS asks, give Pressto <b>Accessibility</b> access in System Settings → Privacy &amp; Security → Accessibility. Until you do, its menu bar icon is red, and its menu offers a shortcut to that settings page.</li>
+        <li>Optionally, move or link <code>.build/Build/Products/Debug/Pressto.app</code> into <i>Applications</i> so Spotlight and launchers find it.</li>
+      </ol>
+      <p class="note">A signed, notarized download will replace these steps. <a href="https://github.com/nillebco/pressto">Watch the repository</a> to hear about it.</p>
     </div>
   </section>
 
   <section id="faq">
     <h2>Questions</h2>
     <div class="faq">
-      <details><summary>Why does Pressto ask for Accessibility access?</summary><p>That permission is how any app can see and press another app's buttons. Pressto uses it only for that, on your Mac: it collects nothing and makes no network requests.</p></details>
-      <details><summary>Why does it ask to control my browser?</summary><p>The first time you open Pressto over Safari, Chrome, Brave or Edge, macOS asks whether Pressto may control that browser. Saying yes lets it read the address of each tab in the window you're looking at, so you can find a tab by typing part of its address. It only reads them when you open the palette, and they never leave your Mac. Saying no is fine: tabs are still listed by title. You can change it any time in System Settings → Privacy &amp; Security → Automation.</p></details>
-      <details><summary>Why isn't it on the Mac App Store?</summary><p>The App Store requires a sandbox that forbids pressing other apps' buttons — which is the whole point. Pressto will ship as a signed, notarized download instead, like most keyboard tools for the Mac.</p></details>
-      <details><summary>Can I still point at things the old way?</summary><p>Yes. Pressto keeps hint labels (<kbd>⇧⌘J</kbd>), a keyboard grid (<kbd>⇧⌘K</kbd>) and free cursor movement (<kbd>⇧⌘L</kbd>) for anything that has no name.</p></details>
-      <details><summary>Where does it come from?</summary><p>Pressto is built on <a href="https://github.com/mjrusso/scoot">Scoot</a> by Michael Russo, an open-source keyboard cursor tool, under the BSD licence. The search is new; fixes that help Scoot too are offered back upstream.</p></details>
+      <details><summary>Why does Pressto ask for Accessibility access?</summary><p>That permission is how one app can see and press another app's buttons; VoiceOver and every window manager use it too. Pressto uses it only for that. It collects nothing and makes no network requests.</p></details>
+      <details><summary>I granted access, but the icon is still red.</summary><p>macOS ties the permission to the app's signature. A build signed without a certificate (ad-hoc) gets a new signature each time it is rebuilt, so the old permission stops matching. Remove Pressto from the Accessibility list, add it again, or build with <code>scripts/dev</code>, which signs with your Apple Development certificate so the permission survives rebuilds.</p></details>
+      <details><summary>Why does it ask to control my browser?</summary><p>The first time you open the palette over Safari, Chrome, Brave, Edge or Vivaldi, macOS asks whether Pressto may control that browser. Saying yes lets it read the address of each tab when you open the palette, so you can find a tab by part of its address. Saying no is fine: tabs are still listed by title. You can change it in System Settings → Privacy &amp; Security → Automation. Firefox and Zen don't ask: Pressto reads the session file they keep on disk. Either way, nothing leaves your Mac.</p></details>
+      <details><summary>A web page shows only its menu items.</summary><p>Firefox, Zen and Chromium-based apps build their accessibility description only when an assistive tool asks for it. Pressto asks when the palette opens and searches again while the page fills in, so the window's controls can arrive a second later on the first try.</p></details>
+      <details><summary>Can I change the shortcuts?</summary><p>The hint, grid and free-cursor shortcuts can be changed in Pressto's Settings. The palette shortcut is fixed at <kbd>⇧⌘H</kbd> for now.</p></details>
+      <details><summary>Can I still point at things the old way?</summary><p>Yes. Pressto keeps Scoot's hint labels (<kbd>⇧⌘J</kbd>), keyboard grid (<kbd>⇧⌘K</kbd>) and free cursor movement (<kbd>⇧⌘L</kbd>) for anything without a name.</p></details>
+      <details><summary>Why isn't it on the Mac App Store?</summary><p>App Store apps run in a sandbox that forbids pressing other apps' buttons, which is the whole point of Pressto. It will ship as a signed, notarized download instead, like most keyboard tools for the Mac.</p></details>
+      <details><summary>Where does it come from?</summary><p>Pressto is built on <a href="https://github.com/mjrusso/scoot">Scoot</a> by Michael Russo, an open-source keyboard cursor tool under the BSD 3-Clause licence. The palette is new; fixes that help Scoot too are sent back upstream.</p></details>
     </div>
   </section>
 
