@@ -155,14 +155,14 @@ footer a { color: var(--muted); }
   </section>
 
   <section>
-    <h2>What it can't reach</h2>
-    <p class="section-lead">Pressto only knows what an app tells macOS. A few things fall through:</p>
+    <h2>When the palette can't find it</h2>
+    <p class="section-lead">The palette only knows what an app tells macOS. Pressto is Scoot plus the palette, so whatever falls through is one shortcut away:</p>
     <ul class="limits">
-      <li><b>Unnamed icon buttons.</b> A button with no title or description has nothing to type, so the palette leaves it out. Use hint labels (<kbd>⇧⌘J</kbd>) for those.</li>
-      <li><b>Things off screen.</b> Only what is visible in the front window is listed — scroll first. Browser tabs are the exception: the whole tab list is searchable.</li>
+      <li><b>Unnamed icon buttons.</b> A button with no title or description has nothing to type, so the palette leaves it out. Hint labels (<kbd>⇧⌘J</kbd>) put a letter on it anyway.</li>
+      <li><b>Clickable rows and cards on web pages.</b> A list row that only reacts to a click, like a pipeline job in a web dashboard, doesn't say it's a button, so neither the palette nor the hints offer it. The keyboard grid (<kbd>⇧⌘K</kbd>) clicks wherever you point.</li>
+      <li><b>Apps with poor accessibility.</b> Games, some cross-platform toolkits and canvas-drawn apps describe little or nothing to macOS. The grid (<kbd>⇧⌘K</kbd>) and free cursor (<kbd>⇧⌘L</kbd>) still work there.</li>
+      <li><b>Things off screen.</b> Only what is visible in the front window is listed, so scroll first. Browser tabs are the exception: the whole tab list is searchable.</li>
       <li><b>Typos.</b> The search forgives missing letters, not wrong ones: <kbd>mrege</kbd> won't find <i>Merge</i>.</li>
-      <li><b>Apps with poor accessibility.</b> Games, some cross-platform toolkits and canvas-drawn apps describe little or nothing to macOS. The keyboard grid (<kbd>⇧⌘K</kbd>) still works there.</li>
-    </ul>
   </section>
 
   <section id="get">
