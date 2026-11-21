@@ -302,12 +302,28 @@ See the [issue tracker][scoot-issues]. Fixes that apply to Scoot too are sent up
 ## Development
 
 ```sh
+scripts/make-signing-cert   # once per machine, if you have no Apple Development identity
 scripts/dev                 # build, sign, relaunch
+scripts/dev --install       # build, sign, copy to /Applications, launch that copy
 scripts/dev --dump          # build, relaunch with SCOOT_DUMP_ELEMENTS=1
 scripts/test                # unit tests
 ```
 
-Grant Accessibility to the built app once; signing with an Apple Development identity keeps the grant across rebuilds (`SCOOT_SIGN_IDENTITY` overrides it). Debug → *Dump Accessibility Elements* writes every element of the focused window to `~/Library/Application Support/Pressto/element-dumps/` and the pasteboard.
+The build needs Xcode, not only the command-line tools: if `xcodebuild` complains, run `sudo xcode-select -s /Applications/Xcode.app` (or set `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`).
+
+#### Signing and the Accessibility grant
+
+macOS ties the Accessibility grant to the app's code signature. Xcode signs the build ad hoc, and an ad-hoc signature changes on every build, so each rebuild would ask for access again. `scripts/dev` therefore re-signs the app, with the first of:
+
+1. `SCOOT_SIGN_IDENTITY`, when set;
+2. a valid *Apple Development* identity from your keychain;
+3. a certificate named *Pressto Local Signing*, which `scripts/make-signing-cert` creates.
+
+The local certificate is self-signed, generated on your machine and kept in your login keychain; it is not shared and not committed. It need not be trusted, so the script changes no trust settings and asks for no password. Grant Accessibility once after the first build signed with it; later builds keep the grant. Remove it with `security delete-identity -c "Pressto Local Signing"`.
+
+#### Element dumps
+
+To see what the accessibility tree exposes, open the palette over the window and choose *Dump accessibility elements* (type `dump`). It writes every element (role, title, value, frame, link address, DOM classes, actions) to `~/Library/Application Support/Pressto/element-dumps/` and the pasteboard, and chimes when done. The menu bar's Debug → *Dump Accessibility Elements* does the same for the app Pressto was last invoked on.
 
 The unit-test bundle is **host-less**: the sources under test are compiled into the test bundle instead of being injected into the app. A hosted test whose host is a menu-bar agent (`LSUIElement`) makes Xcode 27's LaunchServices launcher abort with `Assertion failed: childPID > 0` before a single test runs; the same happens when a copy of the app is already running, which is why `scripts/test` stops any running instance first.
 

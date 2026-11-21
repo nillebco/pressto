@@ -17,8 +17,8 @@
 #   no provisioning profile), and an ad-hoc signature changes on every build, so
 #   the app is re-signed here after building. Without an Apple Development
 #   identity, a self-signed "Pressto Local Signing" certificate in the login
-#   keychain works too: the grant is tied to the certificate, which need not
-#   be trusted. Passing the identity to xcodebuild
+#   keychain works too (scripts/make-signing-cert creates it): the grant is
+#   tied to the certificate, which need not be trusted. Passing the identity to xcodebuild
 #   instead fails on the KeyboardShortcuts resource bundle, which has no team.
 # - The bundle identifier is co.nillebco.pressto, so this build and a Scoot
 #   installed from Homebrew keep separate Accessibility entries.
@@ -49,12 +49,13 @@ xcodebuild \
 if [ -n "$IDENTITY" ]; then
     codesign --force --sign "$IDENTITY" "$APP"
 else
-    echo "warning: no Apple Development identity found; the app stays ad-hoc signed" >&2
+    echo "warning: no signing identity found; the app stays ad-hoc signed." >&2
+    echo "         Run scripts/make-signing-cert once to create a local one." >&2
 fi
 
 if codesign -dv "$APP" 2>&1 | grep -q "Signature=adhoc"; then
     echo "warning: $APP is still ad-hoc signed; macOS will ask for Accessibility again" >&2
-    echo "         after each rebuild. Set SCOOT_SIGN_IDENTITY to a local signing identity." >&2
+    echo "         after each rebuild. Run scripts/make-signing-cert, or set SCOOT_SIGN_IDENTITY." >&2
 fi
 
 # Stop any previous instance; the executable path is what distinguishes this
