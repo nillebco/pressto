@@ -238,8 +238,8 @@ enum PaletteSource {
                 // all expose AXURL on it). Off-screen pages were pruned above,
                 // so the first one is the page the user is looking at.
                 if pageURL == nil, role == "AXWebArea",
-                   let url = try? child.attribute("AXURL") as NSURL? {
-                    pageURL = url as URL
+                   let url = child.url("AXURL") {
+                    pageURL = url
                 }
 
                 let enabled = (try? child.attribute(.enabled) as Bool?) ?? true
@@ -304,10 +304,10 @@ enum PaletteSource {
     private static func label(of element: UIElement, role: String) -> String? {
 
         let candidates: [String?] = [
-            try? element.attribute(.title),
-            try? element.attribute(.description),
-            try? element.attribute(.help),
-            try? element.attribute("AXPlaceholderValue"),
+            element.string(.title),
+            element.string(.description),
+            element.string(.help),
+            element.string("AXPlaceholderValue"),
         ]
 
         if let text = candidates.lazy.compactMap({ $0 }).map(clean).first(where: { !$0.isEmpty }) {
@@ -319,7 +319,7 @@ enum PaletteSource {
         if role == Role.link.rawValue || role == Role.button.rawValue,
            let children: [UIElement] = try? element.arrayAttribute(.children) {
             for child in children.prefix(4) {
-                if let value: String = try? child.attribute(.value), !clean(value).isEmpty {
+                if let value = child.string(.value), !clean(value).isEmpty {
                     return clean(value)
                 }
             }

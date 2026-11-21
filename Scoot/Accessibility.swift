@@ -303,11 +303,12 @@ struct Accessibility {
                 }
 
                 let role = (try? child.role())?.rawValue ?? ""
-                let title: String = (try? child.attribute(.title)) ?? ""
-                let description: String = (try? child.attribute(.description)) ?? ""
-                let valueDescription: String = (try? child.attribute(.valueDescription)) ?? ""
-                let identifier: String = (try? child.attribute(.identifier)) ?? ""
-                let value: String = (try? child.attribute(.value)) ?? ""
+                let title = child.string(.title) ?? ""
+                let description = child.string(.description) ?? ""
+                let valueDescription = child.string(.valueDescription) ?? ""
+                let identifier = child.string(.identifier) ?? ""
+                // Sliders, progress bars and checkboxes hold a number.
+                let value = child.anyAttribute(Attribute.value.rawValue).map { "\($0)" } ?? ""
                 let enabled: Bool = (try? child.attribute(.enabled)) ?? false
                 let frame: CGRect = (try? child.attribute(.frame)) ?? .zero
 
@@ -358,4 +359,27 @@ struct Accessibility {
         )
     }
 
+}
+
+/// Typed reads that cannot abort. AXSwift's `attribute<T>` force-casts, so
+/// asking for `AXValue` as a String crashes on a slider or a progress bar,
+/// whose value is a number; web pages are full of those.
+extension UIElement {
+
+    func anyAttribute(_ name: String) -> Any? {
+        let value: Any?? = try? attribute(name)
+        return value ?? nil
+    }
+
+    func string(_ attribute: Attribute) -> String? {
+        string(attribute.rawValue)
+    }
+
+    func string(_ name: String) -> String? {
+        anyAttribute(name) as? String
+    }
+
+    func url(_ name: String) -> URL? {
+        anyAttribute(name) as? URL
+    }
 }
