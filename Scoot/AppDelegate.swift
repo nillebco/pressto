@@ -534,7 +534,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 guard generation == self.paletteGeneration, self.palette.isVisible else {
                     return
                 }
-                self.palette.update(items: windowItems + menuItems)
+                self.palette.update(items: windowItems + menuItems + [self.dumpCommand(for: app)])
 
                 guard waking, windowItems.count < 10, attempt < maximumAttempts else {
                     return
@@ -544,6 +544,21 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 }
             }
         }
+    }
+
+    /// A palette row that dumps the accessibility tree of the window the
+    /// palette is over. Unlike the menu bar item, whose target is whichever
+    /// app Pressto was last invoked on, it cannot pick the wrong app.
+    private func dumpCommand(for app: NSRunningApplication) -> PaletteItem {
+        PaletteItem(kind: .command, label: "Dump accessibility elements", context: "debug", role: "", element: nil, frame: nil, run: { [weak self] in
+            // On the main thread, like the menu item: a big page blocks for
+            // a moment, which is fine for a diagnostic.
+            if self?.dumpAccessibilityElements(of: app) != nil {
+                NSSound(named: "Glass")?.play()
+            } else {
+                NSSound.beep()
+            }
+        })
     }
 
     private var paletteGeneration = 0

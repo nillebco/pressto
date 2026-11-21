@@ -286,13 +286,13 @@ struct Accessibility {
         let windowFrame: CGRect = (try? focusedWindow.attribute(.frame)) ?? .zero
 
         lines.append("# window\t\(windowTitle)\t\(format(windowFrame.convertToCocoa()))")
-        lines.append(["# role", "subrole", "title", "description", "valueDescription", "identifier", "value", "enabled", "frame"].joined(separator: "\t"))
+        lines.append(["# depth", "role", "subrole", "title", "description", "valueDescription", "identifier", "value", "enabled", "frame", "url", "domClasses", "actions"].joined(separator: "\t"))
 
         var rows = [String]()
         var totalsByRole = [String: Int]()
         var elementsWithoutText = 0
 
-        func traverse(node: UIElement) {
+        func traverse(node: UIElement, depth: Int = 0) {
 
             guard let children: [UIElement] = try? node.arrayAttribute(.children) else {
                 return
@@ -320,8 +320,13 @@ struct Accessibility {
                     elementsWithoutText += 1
                 }
 
+                let url = child.url("AXURL")?.absoluteString ?? ""
+                let domClasses = (child.anyAttribute("AXDOMClassList") as? [String])?.joined(separator: " ") ?? ""
+                let actions = ((try? child.actionsAsStrings()) ?? []).joined(separator: ",")
+
                 rows.append([
-                    role,
+                    String(depth),
+                    role.isEmpty ? child.string(.role) ?? "" : role,
                     (try? child.subrole())?.rawValue ?? "",
                     title,
                     description,
@@ -330,9 +335,13 @@ struct Accessibility {
                     value,
                     enabled ? "yes" : "no",
                     format(frame.convertToCocoa()),
-                ].joined(separator: "\t"))
+                    url,
+                    domClasses,
+                    actions,
+                ].map { $0.replacingOccurrences(of: "\t", with: " ").replacingOccurrences(of: "\n", with: " ") }
+                 .joined(separator: "\t"))
 
-                traverse(node: child)
+                traverse(node: child, depth: depth + 1)
             }
 
         }
