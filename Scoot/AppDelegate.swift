@@ -509,7 +509,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // every app when it quits); Firefox/Zen then expose only stub buttons.
         let waking = !Accessibility.enableEnhancedUserInterfaceIfNecessary(for: app)
 
-        NSApp.activate(ignoringOtherApps: true)
+        // No `NSApp.activate`: the panel is non-activating, so the target app
+        // stays active and macOS does not switch Spaces.
         palette.show(items: menuItemCache[pid] ?? [], over: windowFrame)
 
         scanPalette(of: app, generation: generation, waking: waking)

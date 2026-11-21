@@ -83,8 +83,14 @@ final class PaletteController: NSObject {
     }
 
     func close() {
+        closing = true
         panel.orderOut(nil)
+        closing = false
     }
+
+    /// Set while `close()` orders the panel out, so losing key on the way is
+    /// not mistaken for the user clicking away.
+    private var closing = false
 
     // MARK: - Filtering
 
@@ -148,7 +154,12 @@ final class PaletteController: NSObject {
 
         let panel = PalettePanel(
             contentRect: NSRect(x: 0, y: 0, width: 640, height: 420),
-            styleMask: [.borderless, .fullSizeContentView],
+            // Non-activating, like Spotlight: the panel takes the keyboard
+            // without activating Pressto. Activating it would make macOS leave
+            // a full-screen Space (Safari playing a video) for a Space where
+            // Pressto has a window — the desktop — and the palette would flash
+            // there and vanish.
+            styleMask: [.borderless, .fullSizeContentView, .nonactivatingPanel],
             backing: .buffered,
             defer: false
         )
@@ -157,7 +168,10 @@ final class PaletteController: NSObject {
         panel.backgroundColor = .clear
         panel.hasShadow = true
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-        panel.hidesOnDeactivate = true
+        // Pressto is never activated, so it never deactivates either: close
+        // when the panel loses the keyboard instead (a click elsewhere).
+        panel.hidesOnDeactivate = false
+        panel.delegate = self
 
         let background = NSVisualEffectView()
         background.material = .popover
@@ -342,6 +356,16 @@ private final class PaletteCellView: NSTableCellView {
 }
 
 // MARK: - Search field
+
+extension PaletteController: NSWindowDelegate {
+
+    func windowDidResignKey(_ notification: Notification) {
+        guard !closing, panel.isVisible else {
+            return
+        }
+        cancel()
+    }
+}
 
 extension PaletteController: NSTextFieldDelegate {
 
