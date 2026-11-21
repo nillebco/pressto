@@ -40,9 +40,13 @@ extension KeyboardInputWindow {
     }
 
     override func keyDown(with event: NSEvent) {
-        let modifiers = event.modifierFlags.intersection(
-            .deviceIndependentFlagsMask
-        )
+        // Arrow keys always carry .function and .numericPad, and Caps Lock is
+        // a state, not a chord: left in, they made ⇧↓ read as
+        // [.shift, .function, .numericPad], which matched no binding, so the
+        // scroll shortcuts fell through to the system and beeped.
+        let modifiers = event.modifierFlags
+            .intersection(.deviceIndependentFlagsMask)
+            .subtracting([.function, .numericPad, .capsLock])
 
         guard let characters = event.charactersIgnoringModifiers else {
             return
