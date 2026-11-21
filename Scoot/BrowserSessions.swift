@@ -201,7 +201,13 @@ enum ScriptableBrowsers {
         process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
         process.arguments = ["-e", "tell application id \"\(bundleIdentifier)\" to \(command)"]
         process.standardOutput = Pipe()
-        process.standardError = Pipe()
+        let errors = Pipe()
+        process.standardError = errors
+        process.terminationHandler = { process in
+            guard process.terminationStatus != 0 else { return }
+            let message = String(data: errors.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+            OSLog.main.error("Palette: switching to tab \(tab.index) failed (exit \(process.terminationStatus)): \(message, privacy: .public)")
+        }
         do {
             try process.run()
         } catch {

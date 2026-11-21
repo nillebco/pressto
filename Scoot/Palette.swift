@@ -166,9 +166,34 @@ enum PaletteSource {
             role: Role.radioButton.rawValue,
             element: nil,
             frame: nil,
-            run: { ScriptableBrowsers.select(tab, in: bundleIdentifier) },
+            run: { leavingFullScreenVideo(of: bundleIdentifier) { ScriptableBrowsers.select(tab, in: bundleIdentifier) } },
             detail: tab.url.map(displayAddress)
         )
+    }
+
+    /// Runs `then` once the browser's focused window is out of full screen.
+    ///
+    /// A video played full screen (YouTube's ⛶, `f`) sits in a full-screen
+    /// window of its own, and the browser ignores a tab switch while it is up.
+    /// Escape leaves it; the switch waits for the exit animation. A window put
+    /// in full screen with ⌃⌘F stays so: Escape does not exit it, and tab
+    /// switches work there anyway.
+    static func leavingFullScreenVideo(of bundleIdentifier: String, then: @escaping @Sendable () -> Void) {
+        guard let runningApp = NSRunningApplication.runningApplications(withBundleIdentifier: bundleIdentifier).first,
+              let app = Application(runningApp),
+              let window: UIElement = try? app.attribute(.focusedWindow),
+              window.anyAttribute("AXFullScreen") as? Bool == true else {
+            then()
+            return
+        }
+
+        OSLog.main.log("Palette: \(bundleIdentifier, privacy: .public) is full screen; sending Escape before switching tab")
+        let escape: CGKeyCode = 53
+        for keyDown in [true, false] {
+            CGEvent(keyboardEventSource: nil, virtualKey: escape, keyDown: keyDown)?
+                .postToPid(runningApp.processIdentifier)
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.9, execute: then)
     }
 
     /// host + path, without scheme, query or fragment — what pagecast shows.
