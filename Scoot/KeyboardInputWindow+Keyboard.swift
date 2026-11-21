@@ -5,6 +5,9 @@ import Carbon.HIToolbox
 
 extension KeyboardInputWindow {
 
+    /// A wheel delta, in pixels, past the end of any page or carousel.
+    static let scrollToEndDistance: CGFloat = 1_000_000
+
     /// While the overlay is up, ⌘Q means "dismiss this", not "quit the
     /// background agent".
     ///
@@ -142,6 +145,23 @@ extension KeyboardInputWindow {
         // but `moveToBeginningOfLine` is more appropriate here.
 
         switch (mode, modifiers, character) {
+
+        // ⇧⌘ + arrow: scroll whatever is under the pointer all the way, i.e.
+        // back to the top (or bottom, or a carousel's start or end). Safari's
+        // ⌘↑ only scrolls the document, and sites such as Canal+ scroll an
+        // inner container instead; a wheel event reaches the container under
+        // the pointer. Pages clamp the delta to their scroll range.
+        case (_, [.shift, .command], _) where Int(event.keyCode) == kVK_UpArrow:
+            mouse.scroll(.up, stepSize: Self.scrollToEndDistance)
+
+        case (_, [.shift, .command], _) where Int(event.keyCode) == kVK_DownArrow:
+            mouse.scroll(.down, stepSize: Self.scrollToEndDistance)
+
+        case (_, [.shift, .command], _) where Int(event.keyCode) == kVK_LeftArrow:
+            mouse.scroll(.left, stepSize: Self.scrollToEndDistance)
+
+        case (_, [.shift, .command], _) where Int(event.keyCode) == kVK_RightArrow:
+            mouse.scroll(.right, stepSize: Self.scrollToEndDistance)
 
         case (.emacs, .shift, "P"), (.vi, .control, "b"),
             (_, .shift, _) where Int(event.keyCode) == kVK_UpArrow:

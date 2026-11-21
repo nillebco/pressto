@@ -105,7 +105,7 @@ When Pressto is in the foreground:
 
 * You can double-click with the left mouse button (at the current cursor location) by hitting the Shift and Return keys together (⇧↵).
 
-* You can scroll, by pressing the Shift key in conjunction with the arrow key (↑, ↓, ←, →) pointing in the desired scroll direction.
+* You can scroll, by pressing the Shift key in conjunction with the arrow key (↑, ↓, ←, →) pointing in the desired scroll direction. Add Command (⇧⌘↑) to scroll all the way, e.g. back to the top: unlike a browser's ⌘↑, this reaches inner scroll containers too.
 
 After clicking, any overlaid UI elements (such as the element view, or the grid) will automatically hide. You can also hide these UI elements (and send Pressto to the background) at any time by pressing ⌘H.
 
@@ -207,6 +207,9 @@ _Note:_ ↵ signifies the Return (a.k.a Enter) key. _(Sidenote: technically, Ret
 | ⇧↓     | ⇧-n   | C-f | Scroll down (at current cursor location)  |
 | ⇧←     | ⇧-b   | C-i | Scroll left (at current cursor location)  |
 | ⇧→     | ⇧-f   | C-a | Scroll right (at current cursor location) |
+| ⇧⌘↑    | ⇧⌘↑   | ⇧⌘↑ | Scroll to the top (of whatever is under the cursor) |
+| ⇧⌘↓    | ⇧⌘↓   | ⇧⌘↓ | Scroll to the bottom                      |
+| ⇧⌘← / ⇧⌘→ | ⇧⌘← / ⇧⌘→ | ⇧⌘← / ⇧⌘→ | Scroll to the start / end of a carousel |
 
 ##### Presentation
 
