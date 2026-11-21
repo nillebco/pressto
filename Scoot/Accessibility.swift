@@ -206,7 +206,9 @@ struct Accessibility {
                     if let role = role, let screen = screen {
 
                         switch role {
-                        case .cell, .button, .radioButton, .link, .checkBox, .slider, .popUpButton, .menuButton, .incrementor, .handle:
+                        // .menuItem: web navigation bars marked up as
+                        // role="menuitem" (Canal+'s "Accueil", "TV en direct").
+                        case .cell, .button, .radioButton, .link, .checkBox, .slider, .popUpButton, .menuButton, .incrementor, .handle, .menuItem:
                             elements.append(Element(
                                 role: role,
                                 subrole: try? child.subrole(),

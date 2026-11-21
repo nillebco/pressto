@@ -81,6 +81,9 @@ enum PaletteSource {
         Role.comboBox.rawValue,
         Role.slider.rawValue,
         Role.disclosureTriangle.rawValue,
+        // Web navigation bars marked up as role="menuitem" (Canal+'s
+        // "Accueil", "TV en direct"); the app's own menu bar is read apart.
+        Role.menuItem.rawValue,
     ]
 
     /// Bounds the walk on heavy pages; the palette has to open fast.
@@ -494,6 +497,7 @@ enum PaletteSource {
         case Role.textField.rawValue, Role.textArea.rawValue, Role.comboBox.rawValue: return "field"
         case Role.slider.rawValue: return "slider"
         case Role.disclosureTriangle.rawValue: return "disclosure"
+        case Role.menuItem.rawValue: return "menu item"
         default: return role.replacingOccurrences(of: "AX", with: "").lowercased()
         }
     }
