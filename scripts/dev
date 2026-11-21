@@ -5,6 +5,7 @@
 # Usage:
 #
 #   scripts/dev            build, then open the app
+#   scripts/dev --install  build, copy to /Applications, then open that copy
 #   scripts/dev --dump     build, then run with SCOOT_DUMP_ELEMENTS=1, so every
 #                          element-mode invoke writes an accessibility dump to
 #                          ~/Library/Application Support/Pressto/element-dumps/
@@ -14,7 +15,10 @@
 # - Signing with an Apple Development identity keeps the Accessibility (TCC)
 #   grant across rebuilds. The Xcode build itself signs ad-hoc (the project has
 #   no provisioning profile), and an ad-hoc signature changes on every build, so
-#   the app is re-signed here after building. Passing the identity to xcodebuild
+#   the app is re-signed here after building. Without an Apple Development
+#   identity, a self-signed "Pressto Local Signing" certificate in the login
+#   keychain works too: the grant is tied to the certificate, which need not
+#   be trusted. Passing the identity to xcodebuild
 #   instead fails on the KeyboardShortcuts resource bundle, which has no team.
 # - The bundle identifier is co.nillebco.pressto, so this build and a Scoot
 #   installed from Homebrew keep separate Accessibility entries.
@@ -28,6 +32,9 @@ IDENTITY=${SCOOT_SIGN_IDENTITY:-}
 if [ -z "$IDENTITY" ]; then
     IDENTITY=$(security find-identity -v -p codesigning 2>/dev/null \
         | sed -n 's/.*"\(Apple Development.*\)"/\1/p' | head -1)
+fi
+if [ -z "$IDENTITY" ] && security find-identity -p codesigning 2>/dev/null | grep -q '"Pressto Local Signing"'; then
+    IDENTITY="Pressto Local Signing"
 fi
 
 APP=".build/Build/Products/Debug/Pressto.app"
@@ -45,7 +52,7 @@ else
     echo "warning: no Apple Development identity found; the app stays ad-hoc signed" >&2
 fi
 
-if ! codesign -dv "$APP" 2>&1 | grep -q "TeamIdentifier=.*[0-9A-Z]"; then
+if codesign -dv "$APP" 2>&1 | grep -q "Signature=adhoc"; then
     echo "warning: $APP is still ad-hoc signed; macOS will ask for Accessibility again" >&2
     echo "         after each rebuild. Set SCOOT_SIGN_IDENTITY to a local signing identity." >&2
 fi
@@ -54,6 +61,15 @@ fi
 # build from a Homebrew install in /Applications.
 pkill -f "Products/Debug/(Scoot|Pressto).app/Contents/MacOS/" 2>/dev/null || true
 sleep 0.5
+
+if [ "${1:-}" = "--install" ]; then
+    pkill -f "/Applications/Pressto.app/Contents/MacOS/" 2>/dev/null || true
+    sleep 0.5
+    rm -rf /Applications/Pressto.app
+    ditto "$APP" /Applications/Pressto.app
+    open /Applications/Pressto.app
+    exit 0
+fi
 
 if [ "${1:-}" = "--dump" ]; then
     echo "Launching with SCOOT_DUMP_ELEMENTS=1"
