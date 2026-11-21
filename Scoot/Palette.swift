@@ -345,17 +345,69 @@ enum PaletteSource {
             return text
         }
 
-        // Web links usually carry their text in a static-text child, not in
-        // their own title.
-        if role == Role.link.rawValue || role == Role.button.rawValue,
-           let children: [UIElement] = try? element.arrayAttribute(.children) {
-            for child in children.prefix(4) {
-                if let value = child.string(.value), !clean(value).isEmpty {
-                    return clean(value)
-                }
-            }
+        guard role == Role.link.rawValue || role == Role.button.rawValue else {
+            return nil
         }
 
+        // Web links and buttons usually carry their text below them: a
+        // static-text child, or, for a poster tile or an icon button, an image
+        // with alt text, sometimes a few wrappers down.
+        if let text = descendantText(of: element) {
+            return text
+        }
+
+        // Last resort for a link: its address, which on streaming sites names
+        // the programme ("/programme/the-office" → "the office").
+        if role == Role.link.rawValue,
+           let url = element.url("AXURL"),
+           let slug = slugLabel(url) {
+            return slug
+        }
+
+        return nil
+    }
+
+    /// The first text found breadth-first under `element`, a few levels deep.
+    private static func descendantText(of element: UIElement) -> String? {
+        var level: [UIElement] = [element]
+        var visited = 0
+        for _ in 0..<4 {
+            var next = [UIElement]()
+            for node in level {
+                let children: [UIElement] = (try? node.arrayAttribute(.children)) ?? []
+                for child in children.prefix(8) where child != node {
+                    visited += 1
+                    let texts: [String?] = [
+                        child.string(.value),
+                        child.string(.title),
+                        child.string(.description),
+                    ]
+                    if let text = texts.compactMap({ $0 }).map(clean).first(where: { !$0.isEmpty }) {
+                        return text
+                    }
+                    next.append(child)
+                }
+                if visited > 40 { return nil }
+            }
+            level = next
+        }
+        return nil
+    }
+
+    /// A readable name from the last meaningful path segment of a URL, or nil
+    /// when it looks like an identifier rather than words.
+    static func slugLabel(_ url: URL) -> String? {
+        let segments = url.pathComponents.filter { $0 != "/" }.reversed()
+        for segment in segments {
+            let words = segment
+                .replacingOccurrences(of: "-", with: " ")
+                .replacingOccurrences(of: "_", with: " ")
+                .split(separator: " ")
+                .filter { word in word.contains { $0.isLetter } && !(word.count > 6 && word.allSatisfy { $0.isHexDigit }) }
+            if words.map(\.count).reduce(0, +) >= 3 {
+                return words.map { String($0) }.joined(separator: " ")
+            }
+        }
         return nil
     }
 
