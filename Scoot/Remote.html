@@ -37,7 +37,7 @@
   .seg button { min-height: 36px; padding: 8px 4px; border-radius: 9px; font-size: 14px; background: transparent; color: var(--muted); }
   .seg button[aria-pressed="true"] { background: var(--key-hi); color: var(--text); }
   label.cap { display: block; font-size: 12px; color: var(--muted); margin: 18px 0 6px; text-transform: uppercase; letter-spacing: .06em; }
-  form { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; }
+  form { display: grid; grid-template-columns: 1fr auto auto auto; gap: 8px; }
   input { width: 100%; min-width: 0; border: 0; border-radius: 12px; background: var(--key); color: var(--text);
     font: inherit; font-size: 17px; padding: 12px 14px; user-select: text; -webkit-user-select: text; }
   form button { min-height: 0; padding: 12px 14px; }
@@ -99,6 +99,7 @@
   <input id="text" type="text" enterkeyhint="search" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="skip intro, youtube…">
   <button type="submit" class="primary">Search</button>
   <button type="button" id="type">Type</button>
+  <button type="button" data-key="delete" aria-label="Delete on the Mac">⌫</button>
 </form>
 
 <script>
