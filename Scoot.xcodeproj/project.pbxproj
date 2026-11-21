@@ -46,6 +46,11 @@
 		E59C162F264184500033E2CC /* Tree.swift in Sources */ = {isa = PBXBuildFile; fileRef = E59C162D264184500033E2CC /* Tree.swift */; };
 		E59C1631264185940033E2CC /* TreeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E59C1630264185940033E2CC /* TreeTests.swift */; };
 		E5F0A0122B1A00010000F001 /* Palette.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5F0A0112B1A00010000F001 /* Palette.swift */; };
+		E5F0A0A22B1A00010000F001 /* RemoteProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5F0A0A12B1A00010000F001 /* RemoteProtocol.swift */; };
+		E5F0A0A32B1A00010000F001 /* RemoteProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5F0A0A12B1A00010000F001 /* RemoteProtocol.swift */; };
+		E5F0A0A52B1A00010000F001 /* RemoteServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5F0A0A42B1A00010000F001 /* RemoteServer.swift */; };
+		E5F0A0A72B1A00010000F001 /* Remote.html in Resources */ = {isa = PBXBuildFile; fileRef = E5F0A0A62B1A00010000F001 /* Remote.html */; };
+		E5F0A0A92B1A00010000F001 /* RemoteProtocolTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5F0A0A82B1A00010000F001 /* RemoteProtocolTests.swift */; };
 		E5F0A0142B1A00010000F001 /* PalettePanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5F0A0132B1A00010000F001 /* PalettePanel.swift */; };
 		E5F0A0162B1A00010000F001 /* PaletteSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5F0A0152B1A00010000F001 /* PaletteSearch.swift */; };
 		E5F0A0172B1A00010000F001 /* PaletteSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5F0A0152B1A00010000F001 /* PaletteSearch.swift */; };
@@ -143,6 +148,10 @@
 		E59C162D264184500033E2CC /* Tree.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tree.swift; sourceTree = "<group>"; };
 		E59C1630264185940033E2CC /* TreeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TreeTests.swift; sourceTree = "<group>"; };
 		E5F0A0112B1A00010000F001 /* Palette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Palette.swift; sourceTree = "<group>"; };
+		E5F0A0A12B1A00010000F001 /* RemoteProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteProtocol.swift; sourceTree = "<group>"; };
+		E5F0A0A42B1A00010000F001 /* RemoteServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteServer.swift; sourceTree = "<group>"; };
+		E5F0A0A62B1A00010000F001 /* Remote.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = Remote.html; sourceTree = "<group>"; };
+		E5F0A0A82B1A00010000F001 /* RemoteProtocolTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteProtocolTests.swift; sourceTree = "<group>"; };
 		E5F0A0132B1A00010000F001 /* PalettePanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PalettePanel.swift; sourceTree = "<group>"; };
 		E5F0A0152B1A00010000F001 /* PaletteSearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaletteSearch.swift; sourceTree = "<group>"; };
 		E5F0A0182B1A00010000F001 /* PaletteSearchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaletteSearchTests.swift; sourceTree = "<group>"; };
@@ -267,6 +276,9 @@
 				E5F0A0152B1A00010000F001 /* PaletteSearch.swift */,
 				E5F0A0132B1A00010000F001 /* PalettePanel.swift */,
 				E5F0A0112B1A00010000F001 /* Palette.swift */,
+				E5F0A0A12B1A00010000F001 /* RemoteProtocol.swift */,
+				E5F0A0A42B1A00010000F001 /* RemoteServer.swift */,
+				E5F0A0A62B1A00010000F001 /* Remote.html */,
 				E5B921492656A18D000A0A75 /* FeedbackView.swift */,
 				E591E56B2636F8D000C037FF /* Mouse.swift */,
 				E5F61EEF27ACCF4B0056A6EB /* SettingsView.swift */,
@@ -289,6 +301,7 @@
 				7819B5ECE743DB5A5FA78A18 /* ColorStorageTests.swift */,
 				E59C1630264185940033E2CC /* TreeTests.swift */,
 				E5F0A0042B1A00010000F001 /* FuzzyTests.swift */,
+				E5F0A0A82B1A00010000F001 /* RemoteProtocolTests.swift */,
 				E5F0A0182B1A00010000F001 /* PaletteSearchTests.swift */,
 				E5EB84522787E3F80086A5D6 /* PositionableTests.swift */,
 				E5776241262F04D300849D7D /* Info.plist */,
@@ -419,6 +432,7 @@
 				E59F8551278E7C5600A9FBF6 /* LICENSE in Resources */,
 				E5776231262F04D300849D7D /* Assets.xcassets in Resources */,
 				E5776234262F04D300849D7D /* Main.storyboard in Resources */,
+				E5F0A0A72B1A00010000F001 /* Remote.html in Resources */,
 				E500851027BC9CA00053CB02 /* Credits.md in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -489,6 +503,8 @@
 				E5F0A0162B1A00010000F001 /* PaletteSearch.swift in Sources */,
 				E5F0A0142B1A00010000F001 /* PalettePanel.swift in Sources */,
 				E5F0A0122B1A00010000F001 /* Palette.swift in Sources */,
+				E5F0A0A22B1A00010000F001 /* RemoteProtocol.swift in Sources */,
+				E5F0A0A52B1A00010000F001 /* RemoteServer.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -498,6 +514,8 @@
 			files = (
 				E59C162A263E52540033E2CC /* GridTests.swift in Sources */,
 				E5F0A0052B1A00010000F001 /* FuzzyTests.swift in Sources */,
+				E5F0A0A92B1A00010000F001 /* RemoteProtocolTests.swift in Sources */,
+				E5F0A0A32B1A00010000F001 /* RemoteProtocol.swift in Sources */,
 				E5F0A0032B1A00010000F001 /* Fuzzy.swift in Sources */,
 				E5F0A0172B1A00010000F001 /* PaletteSearch.swift in Sources */,
 				E5F0A0192B1A00010000F001 /* PaletteSearchTests.swift in Sources */,

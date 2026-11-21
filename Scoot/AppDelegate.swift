@@ -113,6 +113,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         self.installDiagnosticMenuItems()
 
+        self.installRemoteMenuItems()
+
         OSLog.main.logDetailsForAllConnectedScreens()
 
         for screen in NSScreen.screens {

@@ -71,6 +71,21 @@ The **grid** divides every connected screen into equal cells, each with its own 
 
 Type a sequence and the pointer jumps there; then click, drag or nudge it from the keyboard. **Freestyle** is the same without anything drawn on screen. Pressto also improves these modes. Element labels now reach web page content in Firefox-based browsers, and stacked buttons each keep their own label. Clicks on dialog buttons now register. The grid can't crash at any size (see [Changes from Scoot](#changes-from-scoot)).
 
+### Phone remote (Tailscale)
+
+Pressto can serve a remote control page to your phone, over your [Tailscale](https://tailscale.com) network only: a d-pad (move, scroll, or scroll all the way), Return and Esc, the four modes, play/pause and ±10 s for web players, and a text field that opens the palette with what you type or dictate (🎤 on the iOS keyboard).
+
+1. Turn it on from the menu bar icon: **Phone Remote (Tailscale)**. Pressto listens on `127.0.0.1:8765`, nothing else, and asks the Tailscale app who is signed in: that login becomes the only one allowed (`RemoteAllowedLogins` in Pressto's defaults).
+2. Publish it to your tailnet, once:
+
+   ```sh
+   tailscale serve --bg http://127.0.0.1:8765     # tailnet only; never `tailscale funnel`
+   ```
+
+3. On the phone (signed in to the same tailnet), open the address from **Copy Phone Remote Address** (`https://<this-mac>.<tailnet>.ts.net/`) and add it to the home screen.
+
+`tailscale serve` tells Pressto who each request comes from; Pressto refuses anyone not on the list, any request that did not come through Tailscale, commands that are not JSON, and commands sent from another site's page. The commands are a closed set: keys from a fixed list (arrows, Return, Esc, Space, Tab, Delete, Home/End, Page Up/Down, letters and digits) with ⇧⌃⌥⌘, typing up to 200 characters, opening a mode, and a palette search. To stop, untick the menu item; to unpublish, `tailscale serve --https=443 off`.
+
 ## About
 
 * Pressto is _not_ intended to replace the mouse or trackpad entirely. It's here to augment them.

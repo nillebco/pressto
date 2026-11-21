@@ -1,0 +1,388 @@
+import AppKit
+import Network
+import OSLog
+
+/// Serves the phone remote (see `Remote`) on 127.0.0.1 only.
+///
+/// One request per connection: read until the request is complete, answer,
+/// close. `tailscale serve` is the only intended client.
+final class RemoteServer: @unchecked Sendable {
+
+    typealias Executor = @MainActor @Sendable (Remote.Command) -> String
+
+    private let queue = DispatchQueue(label: "co.nillebco.pressto.remote")
+    private var listener: NWListener?
+    private let allowedLogins: Set<String>
+    private let page: Data
+    private let execute: Executor
+
+    init(allowedLogins: Set<String>, page: Data, execute: @escaping Executor) {
+        self.allowedLogins = Set(allowedLogins.map { $0.lowercased() })
+        self.page = page
+        self.execute = execute
+    }
+
+    func start() throws {
+        let parameters = NWParameters.tcp
+        parameters.requiredLocalEndpoint = .hostPort(host: .ipv4(.loopback), port: NWEndpoint.Port(rawValue: Remote.port)!)
+        parameters.allowLocalEndpointReuse = true
+
+        let listener = try NWListener(using: parameters)
+        listener.newConnectionHandler = { [weak self] connection in
+            self?.accept(connection)
+        }
+        listener.stateUpdateHandler = { state in
+            OSLog.main.log("Remote: listener \(String(describing: state), privacy: .public)")
+        }
+        listener.start(queue: queue)
+        self.listener = listener
+    }
+
+    func stop() {
+        listener?.cancel()
+        listener = nil
+    }
+
+    // MARK: - Connections
+
+    private func accept(_ connection: NWConnection) {
+        connection.start(queue: queue)
+        receive(on: connection, buffer: Data())
+    }
+
+    private func receive(on connection: NWConnection, buffer: Data) {
+        connection.receive(minimumIncompleteLength: 1, maximumLength: Remote.maximumRequestSize) { [weak self] data, _, isComplete, error in
+            guard let self else {
+                connection.cancel()
+                return
+            }
+            var buffer = buffer
+            if let data {
+                buffer.append(data)
+            }
+            switch Remote.parse(buffer) {
+            case .incomplete:
+                guard !isComplete, error == nil else {
+                    connection.cancel()
+                    return
+                }
+                self.receive(on: connection, buffer: buffer)
+            case .invalid:
+                self.send(Remote.json(status: 400, ["error": "bad request"]), on: connection)
+            case .complete(let request):
+                self.handle(request, on: connection)
+            }
+        }
+    }
+
+    private func handle(_ request: Remote.Request, on connection: NWConnection) {
+
+        let login: String
+        switch Remote.authorize(request, allowedLogins: allowedLogins) {
+        case .forbidden(let reason):
+            OSLog.main.log("Remote: refused \(request.method, privacy: .public) \(request.path, privacy: .public): \(reason, privacy: .public)")
+            send(Remote.json(status: 403, ["error": reason]), on: connection)
+            return
+        case .allowed(let user):
+            login = user
+        }
+
+        switch (request.method, request.path) {
+        case ("GET", "/"):
+            send(Remote.response(status: 200, contentType: "text/html; charset=utf-8", body: page), on: connection)
+            return
+        case ("GET", "/healthz"):
+            send(Remote.json(status: 200, ["ok": true, "user": login]), on: connection)
+            return
+        case ("POST", _):
+            break
+        default:
+            send(Remote.json(status: 405, ["error": "method not allowed"]), on: connection)
+            return
+        }
+
+        switch Remote.decode(request) {
+        case .failure(.notFound):
+            send(Remote.json(status: 404, ["error": "not found"]), on: connection)
+        case .failure(.invalid(let message)):
+            send(Remote.json(status: 400, ["error": message]), on: connection)
+        case .success(let command):
+            let execute = self.execute
+            DispatchQueue.main.async {
+                let detail = MainActor.assumeIsolated { execute(command) }
+                self.send(Remote.json(status: 200, ["ok": true, "detail": detail]), on: connection)
+            }
+        }
+    }
+
+    private func send(_ data: Data, on connection: NWConnection) {
+        connection.send(content: data, completion: .contentProcessed { _ in
+            connection.cancel()
+        })
+    }
+}
+
+// MARK: - Synthetic keys
+
+/// Posts keys as if typed on this Mac's keyboard: they reach whatever has the
+/// keyboard, the palette or an overlay of Pressto's included.
+enum RemoteKeys {
+
+    static func post(code: UInt16, modifiers: Remote.Modifiers) {
+        var flags = CGEventFlags()
+        if modifiers.contains(.shift) { flags.insert(.maskShift) }
+        if modifiers.contains(.control) { flags.insert(.maskControl) }
+        if modifiers.contains(.option) { flags.insert(.maskAlternate) }
+        if modifiers.contains(.command) { flags.insert(.maskCommand) }
+
+        for keyDown in [true, false] {
+            let event = CGEvent(keyboardEventSource: nil, virtualKey: code, keyDown: keyDown)
+            event?.flags = flags
+            event?.post(tap: .cghidEventTap)
+        }
+    }
+
+    static func type(_ text: String) {
+        for stroke in Remote.keystrokes(for: text) {
+            if let code = stroke.code {
+                post(code: code, modifiers: stroke.modifiers)
+            } else {
+                var units = Array(String(stroke.character).utf16)
+                for keyDown in [true, false] {
+                    let event = CGEvent(keyboardEventSource: nil, virtualKey: 0, keyDown: keyDown)
+                    event?.flags = []
+                    event?.keyboardSetUnicodeString(stringLength: units.count, unicodeString: &units)
+                    event?.post(tap: .cghidEventTap)
+                }
+            }
+            usleep(3000)
+        }
+    }
+}
+
+// MARK: - App integration
+
+/// The running server, when the remote is on.
+@MainActor private var remoteServer: RemoteServer?
+
+extension AppDelegate {
+
+    private static let remoteEnabledKey = "RemoteEnabled"
+    private static let remoteAllowedLoginsKey = "RemoteAllowedLogins"
+    private static let remoteAddressKey = "RemoteAddress"
+
+    private static let remoteMenuTitle = "Phone Remote (Tailscale)"
+    private static let remoteCopyTitle = "Copy Phone Remote Address"
+
+    /// Adds the remote's items above Settings… and starts it if it was on.
+    func installRemoteMenuItems() {
+
+        let toggle = NSMenuItem(title: Self.remoteMenuTitle, action: #selector(toggleRemotePressed(_:)), keyEquivalent: "")
+        toggle.target = self
+        let copy = NSMenuItem(title: Self.remoteCopyTitle, action: #selector(copyRemoteAddressPressed(_:)), keyEquivalent: "")
+        copy.target = self
+
+        let index = menu.items.firstIndex { $0.title.hasPrefix("Settings") } ?? menu.items.count
+        menu.insertItem(.separator(), at: index)
+        menu.insertItem(copy, at: index)
+        menu.insertItem(toggle, at: index)
+
+        if UserDefaults.standard.bool(forKey: Self.remoteEnabledKey) {
+            startRemote()
+        }
+        refreshRemoteMenuItems()
+    }
+
+    @objc func toggleRemotePressed(_ sender: NSMenuItem) {
+        if remoteServer == nil {
+            startRemote()
+        } else {
+            remoteServer?.stop()
+            remoteServer = nil
+            UserDefaults.standard.set(false, forKey: Self.remoteEnabledKey)
+            OSLog.main.log("Remote: stopped")
+        }
+        refreshRemoteMenuItems()
+    }
+
+    @objc func copyRemoteAddressPressed(_ sender: NSMenuItem) {
+        guard let address = UserDefaults.standard.string(forKey: Self.remoteAddressKey) else {
+            NSSound.beep()
+            return
+        }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(address, forType: .string)
+    }
+
+    private func refreshRemoteMenuItems() {
+        let on = remoteServer != nil
+        menu.items.first { $0.title == Self.remoteMenuTitle }?.state = on ? .on : .off
+        menu.items.first { $0.title == Self.remoteCopyTitle }?.isHidden = !on
+    }
+
+    /// Starts listening, after learning from Tailscale who is signed in on
+    /// this Mac (the default allow list) and its tailnet address.
+    private func startRemote() {
+
+        guard let page = Bundle.main.url(forResource: "Remote", withExtension: "html").flatMap({ try? Data(contentsOf: $0) }) else {
+            OSLog.main.error("Remote: Remote.html is missing from the bundle")
+            NSSound.beep()
+            return
+        }
+
+        let identity = TailscaleIdentity.current()
+        if let address = identity?.address {
+            UserDefaults.standard.set(address, forKey: Self.remoteAddressKey)
+        }
+
+        var allowed = UserDefaults.standard.stringArray(forKey: Self.remoteAllowedLoginsKey) ?? []
+        if allowed.isEmpty, let login = identity?.login {
+            allowed = [login]
+            UserDefaults.standard.set(allowed, forKey: Self.remoteAllowedLoginsKey)
+        }
+        guard !allowed.isEmpty else {
+            OSLog.main.error("Remote: no allowed login; is Tailscale running and signed in?")
+            NSSound.beep()
+            return
+        }
+
+        let server = RemoteServer(allowedLogins: Set(allowed), page: page) { [weak self] command in
+            self?.runRemote(command) ?? "gone"
+        }
+        do {
+            try server.start()
+        } catch {
+            OSLog.main.error("Remote: cannot listen on 127.0.0.1:\(Remote.port): \(error.localizedDescription, privacy: .public)")
+            NSSound.beep()
+            return
+        }
+        remoteServer = server
+        UserDefaults.standard.set(true, forKey: Self.remoteEnabledKey)
+        OSLog.main.log("Remote: listening on 127.0.0.1:\(Remote.port) for \(allowed.joined(separator: ", "), privacy: .public)")
+    }
+
+    private func runRemote(_ command: Remote.Command) -> String {
+        switch command {
+        case let .key(code, modifiers):
+            RemoteKeys.post(code: code, modifiers: modifiers)
+            return "key"
+        case .type(let text):
+            RemoteKeys.type(text)
+            return "typed"
+        case .mode(.palette):
+            showPalette()
+            return "palette"
+        case .mode(.labels):
+            bringToForeground(using: .element)
+            return "labels"
+        case .mode(.grid):
+            bringToForeground(using: .grid)
+            return "grid"
+        case .mode(.freestyle):
+            bringToForeground(using: .freestyle)
+            return "freestyle"
+        case .search(let text):
+            let wasOpen = palette.isVisible
+            if !wasOpen {
+                showPalette()
+            }
+            // Let the panel take the keyboard; replace any earlier query.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                if wasOpen {
+                    RemoteKeys.post(code: Remote.keyCodes["a"]!, modifiers: .command)
+                }
+                RemoteKeys.type(text)
+            }
+            return "search"
+        case let .scroll(direction, all):
+            scrollForRemote(direction, all: all)
+            return all ? "scrolled all the way" : "scrolled"
+        case .focusTV:
+            return focusTV()
+        }
+    }
+
+    /// A remote scroll step: about a third of a TV screen.
+    private static let remoteScrollStep: CGFloat = 300
+
+    /// Scrolls at the pointer, after moving it onto the frontmost window if it
+    /// is elsewhere (on another screen, or over the menu bar): the scroll goes
+    /// to whatever is under it.
+    private func scrollForRemote(_ direction: Remote.Direction, all: Bool) {
+        let mouse = Mouse()
+        if let app = NSWorkspace.shared.frontmostApplication, app != .current,
+           let frame = PaletteSource.focusedWindowFrame(of: app),
+           !frame.insetBy(dx: 8, dy: 8).contains(NSEvent.mouseLocation) {
+            mouse.move(to: CGPoint(x: frame.midX, y: frame.midY))
+        }
+        let step = all ? KeyboardInputWindow.scrollToEndDistance : Self.remoteScrollStep
+        let to: NSPoint.Direction = switch direction {
+        case .up: .up
+        case .down: .down
+        case .left: .left
+        case .right: .right
+        }
+        mouse.scroll(to, stepSize: step)
+    }
+
+    /// The app the remote drives, Safari unless `RemoteTVApp` names another.
+    private func focusTV() -> String {
+        let bundleIdentifier = UserDefaults.standard.string(forKey: "RemoteTVApp") ?? "com.apple.Safari"
+        // Hide Pressto's own overlays first, as Esc would.
+        if palette.isVisible || inputWindow.isVisible {
+            palette.close()
+            bringToBackground()
+        }
+        guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleIdentifier) else {
+            return "\(bundleIdentifier) not installed"
+        }
+        // Opening the app activates it, and macOS switches to its Space (the
+        // full-screen one included); `activate()` from a background app may be
+        // ignored.
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.activates = true
+        NSWorkspace.shared.openApplication(at: url, configuration: configuration)
+        return "back to \(url.deletingPathExtension().lastPathComponent)"
+    }
+}
+
+/// Who is signed in to Tailscale on this Mac, and the Mac's tailnet address.
+enum TailscaleIdentity {
+
+    static let candidates = [
+        "/Applications/Tailscale.app/Contents/MacOS/Tailscale",
+        "/opt/homebrew/bin/tailscale",
+        "/usr/local/bin/tailscale",
+    ]
+
+    static func current() -> (login: String, address: String?)? {
+
+        guard let executable = candidates.first(where: { FileManager.default.isExecutableFile(atPath: $0) }) else {
+            return nil
+        }
+
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: executable)
+        process.arguments = ["status", "--json"]
+        let output = Pipe()
+        process.standardOutput = output
+        process.standardError = Pipe()
+        guard (try? process.run()) != nil else {
+            return nil
+        }
+        let data = output.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let me = json["Self"] as? [String: Any],
+              let userID = me["UserID"] as? Int,
+              let users = json["User"] as? [String: Any],
+              let user = users[String(userID)] as? [String: Any],
+              let login = user["LoginName"] as? String else {
+            return nil
+        }
+
+        let host = (me["DNSName"] as? String).map { $0.hasSuffix(".") ? String($0.dropLast()) : $0 }
+        return (login.lowercased(), host.map { "https://\($0)/" })
+    }
+}
