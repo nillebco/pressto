@@ -28,7 +28,8 @@ enum BrowserSessions {
     /// AppleScript round trip (~100 ms) overlaps the accessibility scan.
     static func beginReadingURLs(for bundleIdentifier: String) -> () -> [String: [URL]] {
         if ScriptableBrowsers.supports(bundleIdentifier) {
-            return ScriptableBrowsers.beginReadingFrontWindow(of: bundleIdentifier)
+            let tabs = ScriptableBrowsers.beginReadingFrontWindow(of: bundleIdentifier)
+            return { ScriptableBrowsers.urlsByTitle(tabs()) }
         }
         return { urlsByTitle(for: bundleIdentifier) }
     }
@@ -171,10 +172,47 @@ enum ScriptableBrowsers {
     /// thread; the palette scans on a background queue. JXA, because it returns
     /// JSON, and one bulk request per property (`tabs.title()`), because
     /// per-tab calls cost one Apple event each.
-    static func beginReadingFrontWindow(of bundleIdentifier: String, timeout: TimeInterval = 0.4) -> () -> [String: [URL]] {
+    /// One tab of the front window, in tab-bar order. `index` is 1-based, as
+    /// AppleScript counts.
+    struct Tab {
+        let index: Int
+        let title: String
+        let url: URL?
+    }
+
+    /// Tabs read by script, grouped by title the way the palette matches them.
+    static func urlsByTitle(_ tabs: [Tab]) -> [String: [URL]] {
+        var urls = [String: [URL]]()
+        for tab in tabs {
+            if let url = tab.url {
+                urls[tab.title, default: []].append(url)
+            }
+        }
+        return urls
+    }
+
+    /// Brings the tab forward. The tab bar may be hidden (one tab, full screen,
+    /// compact layout), so this goes through scripting, not the tab button.
+    static func select(_ tab: Tab, in bundleIdentifier: String) {
+        let command = bundleIdentifier.hasPrefix("com.apple.Safari")
+            ? "set current tab of front window to tab \(tab.index) of front window"
+            : "set active tab index of front window to \(tab.index)"
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        process.arguments = ["-e", "tell application id \"\(bundleIdentifier)\" to \(command)"]
+        process.standardOutput = Pipe()
+        process.standardError = Pipe()
+        do {
+            try process.run()
+        } catch {
+            OSLog.main.error("Palette: cannot switch tab: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    static func beginReadingFrontWindow(of bundleIdentifier: String, timeout: TimeInterval = 0.4) -> () -> [Tab] {
 
         guard let property = titleProperty[bundleIdentifier] else {
-            return { [:] }
+            return { [] }
         }
 
         let script = """
@@ -195,7 +233,7 @@ enum ScriptableBrowsers {
             try process.run()
         } catch {
             OSLog.main.error("Palette: cannot run osascript: \(error.localizedDescription, privacy: .public)")
-            return { [:] }
+            return { [] }
         }
 
         // Drain the pipe while the script runs: a few hundred tabs overflow its
@@ -214,27 +252,27 @@ enum ScriptableBrowsers {
                 // running so the user's answer is recorded; the palette shows the
                 // tabs without addresses this time.
                 OSLog.main.log("Palette: no tab URLs from \(bundleIdentifier, privacy: .public) within \(timeout)s")
-                return [:]
+                return []
             }
             guard process.terminationStatus == 0 else {
                 OSLog.main.log("Palette: \(bundleIdentifier, privacy: .public) refused tab URLs (exit \(process.terminationStatus)); allow it under Privacy & Security → Automation")
-                return [:]
+                return []
             }
 
             guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  let titles = json["titles"] as? [String],
+                  let titles = json["titles"] as? [Any],
                   let addresses = json["urls"] as? [Any] else {
-                return [:]
+                return []
             }
 
-            var urls = [String: [URL]]()
-            for (title, address) in zip(titles, addresses) {
-                if let address = address as? String, let url = URL(string: address) {
-                    urls[title, default: []].append(url)
-                }
+            // Titles and URLs can be null (a tab still loading).
+            let tabs = zip(titles, addresses).enumerated().map { offset, pair in
+                Tab(index: offset + 1,
+                    title: (pair.0 as? String) ?? "",
+                    url: (pair.1 as? String).flatMap(URL.init(string:)))
             }
-            OSLog.main.log("Palette: read \(titles.count) tab URL(s) from \(bundleIdentifier, privacy: .public) in \(Int(Date().timeIntervalSince(started) * 1000)) ms")
-            return urls
+            OSLog.main.log("Palette: read \(tabs.count) tab(s) from \(bundleIdentifier, privacy: .public) in \(Int(Date().timeIntervalSince(started) * 1000)) ms")
+            return tabs
         }
     }
 }

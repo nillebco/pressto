@@ -111,13 +111,27 @@ enum PaletteSource {
         let started = Date()
 
         // Started before the scan so the AppleScript round trip overlaps it.
-        let tabURLs = runningApp.bundleIdentifier.flatMap { bundleIdentifier in
-            BrowserSessions.supports(bundleIdentifier) ? BrowserSessions.beginReadingURLs(for: bundleIdentifier) : nil
-        }
+        // Scriptable browsers (Safari, Chromium) report every tab of the front
+        // window, in order; the others only give addresses to match by title.
+        let bundleIdentifier = runningApp.bundleIdentifier ?? ""
+        let scriptedTabs = ScriptableBrowsers.supports(bundleIdentifier)
+            ? ScriptableBrowsers.beginReadingFrontWindow(of: bundleIdentifier) : nil
+        let tabURLs = scriptedTabs == nil && BrowserSessions.supports(bundleIdentifier)
+            ? BrowserSessions.beginReadingURLs(for: bundleIdentifier) : nil
 
         var items = elementItems(of: app)
 
-        if let tabURLs {
+        if let scriptedTabs {
+            let tabs = scriptedTabs()
+            if tabs.isEmpty {
+                // No Automation access: keep the tab buttons the tree shows.
+            } else {
+                // The tab bar can be hidden (one tab, full screen, compact
+                // layout) or scrolled, so its buttons are not the full list.
+                items.removeAll { $0.kind == .tab }
+                items += tabs.map { scriptedTabItem($0, in: bundleIdentifier) }
+            }
+        } else if let tabURLs {
             items = withTabAddresses(items, from: tabURLs())
         }
 
@@ -141,6 +155,20 @@ enum PaletteSource {
             item.detail = displayAddress(url)
             return item
         }
+    }
+
+    private static func scriptedTabItem(_ tab: ScriptableBrowsers.Tab, in bundleIdentifier: String) -> PaletteItem {
+        let title = clean(tab.title)
+        return PaletteItem(
+            kind: .tab,
+            label: title.isEmpty ? (tab.url?.host ?? "Tab \(tab.index)") : title,
+            context: "tab \(tab.index)",
+            role: Role.radioButton.rawValue,
+            element: nil,
+            frame: nil,
+            run: { ScriptableBrowsers.select(tab, in: bundleIdentifier) },
+            detail: tab.url.map(displayAddress)
+        )
     }
 
     /// host + path, without scheme, query or fragment — what pagecast shows.
