@@ -310,11 +310,20 @@ extension AppDelegate {
     /// to whatever is under it.
     private func scrollForRemote(_ direction: Remote.Direction, all: Bool) {
         let mouse = Mouse()
-        if let app = NSWorkspace.shared.frontmostApplication, app != .current,
+        var location = NSEvent.mouseLocation
+        let app = NSWorkspace.shared.frontmostApplication
+        if let app, app != .current,
            let frame = PaletteSource.focusedWindowFrame(of: app),
-           !frame.insetBy(dx: 8, dy: 8).contains(NSEvent.mouseLocation) {
-            mouse.move(to: CGPoint(x: frame.midX, y: frame.midY))
+           !frame.insetBy(dx: 8, dy: 8).contains(location) {
+            location = CGPoint(x: frame.midX, y: frame.midY)
         }
+        // Always post a move, even on the spot: WebKit picks the view to
+        // scroll from the last mouse movement it saw, so a bare wheel event
+        // after the pointer sat still does nothing in Safari (other apps
+        // scroll anyway). Freestyle never hit this: its pointer always moved.
+        mouse.move(to: location)
+        usleep(15000)
+        OSLog.main.log("Remote: scroll \(direction.rawValue, privacy: .public)\(all ? " all" : "", privacy: .public) at \(Int(location.x)),\(Int(location.y)) in \(app?.bundleIdentifier ?? "?", privacy: .public)")
         let step = all ? KeyboardInputWindow.scrollToEndDistance : Self.remoteScrollStep
         let to: NSPoint.Direction = switch direction {
         case .up: .up
