@@ -105,6 +105,13 @@ final class RemoteProtocolTests: XCTestCase {
         XCTAssertEqual(Remote.decode(request("POST", "/v1/focus", body: "{}")), .success(.focusTV))
     }
 
+    func testDecodesShortcuts() {
+        XCTAssertEqual(Remote.decode(request("POST", "/v1/locate", body: "{}")), .success(.locatePointer))
+        XCTAssertEqual(Remote.decode(request("POST", "/v1/home", body: "{}")), .success(.siteHome))
+        XCTAssertEqual(Remote.decode(request("POST", "/v1/press", body: #"{"labels":["Search","Rechercher"]}"#)), .success(.press(["Search", "Rechercher"])))
+        XCTAssertEqual(Remote.decode(request("POST", "/v1/press", body: #"{"labels":[]}"#)), .failure(.invalid("labels must be 1–10 names")))
+    }
+
     func testRefusesUnprintableOrLongText() {
         XCTAssertNotEqual(Remote.decode(request("POST", "/v1/type", body: #"{"text":"a\nb"}"#)), .success(.type("a\nb")))
         let long = String(repeating: "a", count: Remote.maximumTextLength + 1)

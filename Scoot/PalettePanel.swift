@@ -1,4 +1,5 @@
 import AppKit
+import OSLog
 
 /// A borderless panel that can still take keyboard focus.
 private final class PalettePanel: NSPanel {
@@ -144,6 +145,7 @@ final class PaletteController: NSObject {
     }
 
     private func cancel() {
+        OSLog.main.log("Palette: dismissed")
         close()
         onCancel?()
     }
@@ -363,6 +365,7 @@ extension PaletteController: NSWindowDelegate {
         guard !closing, panel.isVisible else {
             return
         }
+        OSLog.main.log("Palette: lost the keyboard to \(NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "?", privacy: .public); closing")
         cancel()
     }
 }

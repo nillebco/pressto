@@ -49,6 +49,11 @@
 <div class="row">
   <button id="tv" class="primary">⟲ Back to TV</button>
 </div>
+<div class="row r3">
+  <button id="locate" aria-label="Show where the pointer is">◎ Pointer</button>
+  <button id="sitesearch" aria-label="Open the site's search">🔍 Site search</button>
+  <button id="sitehome" aria-label="Go to the site's home page">⌂ Site home</button>
+</div>
 <div class="row r2">
   <button data-key="leftbracket" data-mods="command" aria-label="Previous page">◀ Page</button>
   <button data-key="rightbracket" data-mods="command" aria-label="Next page">Page ▶</button>
@@ -169,6 +174,10 @@
   });
 
   document.getElementById('tv').addEventListener('click', () => send('/v1/focus', {}));
+  document.getElementById('locate').addEventListener('click', () => send('/v1/locate', {}));
+  document.getElementById('sitehome').addEventListener('click', () => send('/v1/home', {}));
+  document.getElementById('sitesearch').addEventListener('click', () =>
+    send('/v1/press', { labels: ['Search', 'Rechercher', 'Recherche', 'Cerca', 'Open search', 'Ouvrir la recherche'] }));
   document.querySelector('[data-scroll-top]').addEventListener('click', () => send('/v1/scroll', { direction: 'up', all: true }));
 
   const input = document.getElementById('text');

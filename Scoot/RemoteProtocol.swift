@@ -183,6 +183,13 @@ enum Remote {
         case scroll(Direction, all: Bool)
         /// Brings the TV app (Safari) forward, and with it its Space.
         case focusTV
+        /// Rings the pointer on screen for a moment.
+        case locatePointer
+        /// Goes to the home page of the site in the front tab.
+        case siteHome
+        /// Presses the first control of the front window named one of these
+        /// (case-insensitive), without opening the palette.
+        case press([String])
     }
 
     enum Direction: String, Sendable {
@@ -220,7 +227,7 @@ enum Remote {
 
     static func decode(_ request: Request) -> Result<Command, DecodeError> {
 
-        let routes = ["/v1/key", "/v1/type", "/v1/mode", "/v1/search", "/v1/scroll", "/v1/focus"]
+        let routes = ["/v1/key", "/v1/type", "/v1/mode", "/v1/search", "/v1/scroll", "/v1/focus", "/v1/locate", "/v1/home", "/v1/press"]
         guard routes.contains(request.path) else {
             return .failure(.notFound)
         }
@@ -251,6 +258,19 @@ enum Remote {
 
         case "/v1/focus":
             return .success(.focusTV)
+
+        case "/v1/locate":
+            return .success(.locatePointer)
+
+        case "/v1/home":
+            return .success(.siteHome)
+
+        case "/v1/press":
+            guard let labels = object["labels"] as? [String], !labels.isEmpty, labels.count <= 10,
+                  labels.allSatisfy({ !$0.isEmpty && $0.count <= 60 }) else {
+                return .failure(.invalid("labels must be 1–10 names"))
+            }
+            return .success(.press(labels))
 
         case "/v1/mode":
             guard let name = object["mode"] as? String, let mode = Mode(rawValue: name) else {

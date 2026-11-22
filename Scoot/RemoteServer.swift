@@ -270,7 +270,7 @@ extension AppDelegate {
             RemoteKeys.type(text)
             return "typed"
         case .mode(.palette):
-            showPalette()
+            openPaletteForRemote()
             return "palette"
         case .mode(.labels):
             bringToForeground(using: .element)
@@ -282,9 +282,9 @@ extension AppDelegate {
             bringToForeground(using: .freestyle)
             return "freestyle"
         case .search(let text):
-            let wasOpen = palette.isVisible
+            let wasOpen = palette.isVisible && NSWorkspace.shared.frontmostApplication != .current
             if !wasOpen {
-                showPalette()
+                openPaletteForRemote()
             }
             // Let the panel take the keyboard; replace any earlier query.
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
@@ -299,7 +299,82 @@ extension AppDelegate {
             return all ? "scrolled all the way" : "scrolled"
         case .focusTV:
             return focusTV()
+        case .locatePointer:
+            PointerLocator.ring(at: NSEvent.mouseLocation)
+            return "pointer"
+        case .siteHome:
+            return goToSiteHome()
+        case .press(let labels):
+            return pressNamed(labels)
         }
+    }
+
+    /// Opens the palette over the app being watched, never over Pressto's own
+    /// overlay (left in front by Labels, Grid or Free): there it would have
+    /// no window to sit on and could vanish. Reopens it if already open.
+    private func openPaletteForRemote() {
+        if palette.isVisible {
+            palette.close()
+        }
+        if NSWorkspace.shared.frontmostApplication == .current || inputWindow.isVisible {
+            bringToBackground { [weak self] in
+                self?.showPalette()
+            }
+        } else {
+            showPalette()
+        }
+    }
+
+    /// Loads the front tab's site root (`https://host/`) by script.
+    private func goToSiteHome() -> String {
+        guard let app = NSWorkspace.shared.frontmostApplication, let id = app.bundleIdentifier,
+              ScriptableBrowsers.supports(id) else {
+            return "not a browser"
+        }
+        let get = id.hasPrefix("com.apple.Safari") ? "URL of current tab of front window" : "URL of active tab of front window"
+        let read = Process()
+        read.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        read.arguments = ["-e", "tell application id \"\(id)\" to get \(get)"]
+        let output = Pipe()
+        read.standardOutput = output
+        read.standardError = Pipe()
+        guard (try? read.run()) != nil else { return "no script" }
+        read.waitUntilExit()
+        let address = String(data: output.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard let url = URL(string: address), let scheme = url.scheme, ["http", "https"].contains(scheme),
+              let host = url.host, host.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "." || $0 == "-" }) else {
+            return "no page"
+        }
+        let home = "\(scheme)://\(host)/"
+        let set = id.hasPrefix("com.apple.Safari") ? "set URL of current tab of front window to" : "set URL of active tab of front window to"
+        let write = Process()
+        write.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        write.arguments = ["-e", "tell application id \"\(id)\" to \(set) \"\(home)\""]
+        write.standardOutput = Pipe()
+        write.standardError = Pipe()
+        try? write.run()
+        return "home: \(host)"
+    }
+
+    /// Presses the first control named one of `labels` in the front window,
+    /// trying the names in order: exact match first, then prefix.
+    private func pressNamed(_ labels: [String]) -> String {
+        guard let app = NSWorkspace.shared.frontmostApplication, app != .current else {
+            return "Pressto is in front; tap Back to TV"
+        }
+        let items = PaletteSource.windowItems(for: app).filter { $0.kind == .element }
+        let wanted = labels.map { $0.lowercased() }
+        for matches in [{ (l: String, w: String) in l == w }, { (l: String, w: String) in l.hasPrefix(w) }] {
+            for name in wanted {
+                if let item = items.first(where: { matches($0.label.lowercased(), name) }) {
+                    PaletteSource.perform(item)
+                    OSLog.main.log("Remote: pressed \(item.label, privacy: .private(mask: .hash))")
+                    return "pressed \(item.label)"
+                }
+            }
+        }
+        return "nothing named \(labels.first ?? "")"
     }
 
     /// A remote scroll step: about a third of a TV screen.
@@ -393,5 +468,60 @@ enum TailscaleIdentity {
 
         let host = (me["DNSName"] as? String).map { $0.hasSuffix(".") ? String($0.dropLast()) : $0 }
         return (login.lowercased(), host.map { "https://\($0)/" })
+    }
+}
+
+/// A ring drawn around the pointer for a second and a half, big enough to
+/// find it on a TV across the room.
+@MainActor
+enum PointerLocator {
+
+    private static var window: NSWindow?
+
+    static func ring(at point: CGPoint) {
+        window?.orderOut(nil)
+
+        let size: CGFloat = 220
+        let frame = CGRect(x: point.x - size / 2, y: point.y - size / 2, width: size, height: size)
+        let window = NSWindow(contentRect: frame, styleMask: .borderless, backing: .buffered, defer: false)
+        window.isOpaque = false
+        window.backgroundColor = .clear
+        window.ignoresMouseEvents = true
+        window.level = .screenSaver
+        window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]
+        window.isReleasedWhenClosed = false
+
+        let view = NSView(frame: CGRect(origin: .zero, size: frame.size))
+        view.wantsLayer = true
+        let ring = CAShapeLayer()
+        ring.path = CGPath(ellipseIn: view.bounds.insetBy(dx: 14, dy: 14), transform: nil)
+        ring.fillColor = NSColor.systemYellow.withAlphaComponent(0.18).cgColor
+        ring.strokeColor = NSColor.systemYellow.cgColor
+        ring.lineWidth = 10
+        ring.shadowColor = NSColor.black.cgColor
+        ring.shadowOpacity = 0.8
+        ring.shadowRadius = 6
+        ring.frame = view.bounds
+        view.layer?.addSublayer(ring)
+
+        let pulse = CABasicAnimation(keyPath: "transform.scale")
+        pulse.fromValue = 1.6
+        pulse.toValue = 0.5
+        pulse.duration = 0.5
+        pulse.repeatCount = 3
+        ring.position = CGPoint(x: view.bounds.midX, y: view.bounds.midY)
+        ring.bounds = view.bounds
+        ring.add(pulse, forKey: "pulse")
+
+        window.contentView = view
+        window.orderFrontRegardless()
+        self.window = window
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            if self.window === window {
+                window.orderOut(nil)
+                self.window = nil
+            }
+        }
     }
 }
