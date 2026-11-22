@@ -129,9 +129,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         self.initializeChangeScreenParametersObserver()
 
-        #if DEBUG
-        self.bringToForeground(using: .element)
-        #endif
+        // Upstream opened element mode at every Debug launch, a convenience
+        // when running from Xcode. In an installed Debug build it left Pressto
+        // in front after each restart, so the palette had no app to open over.
+        if ProcessInfo.processInfo.environment["SCOOT_LAUNCH_OVERLAY"] != nil {
+            self.bringToForeground(using: .element)
+        }
     }
 
     func applicationWillTerminate(_ aNotification: Notification) {
@@ -489,11 +492,33 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// The palette is not a `JumpMode`: it draws no overlay and moves no
     /// cursor, so it bypasses the input window entirely and owns its panel.
     func showPalette() {
-        self.currentApp = NSWorkspace.shared.frontmostApplication
+        let front = NSWorkspace.shared.frontmostApplication
 
-        guard let app = currentApp else {
+        // Pressto itself in front (an overlay left up, or just launched): hide
+        // it, and open the palette over whatever app comes back.
+        if front == .current {
+            OSLog.main.log("Palette: requested while Pressto is in front; hiding it first")
+            bringToBackground { [weak self] in
+                // Without a remembered app, hiding returns at once, before
+                // macOS has brought another app forward: give it a moment.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    guard let self, NSWorkspace.shared.frontmostApplication != .current else {
+                        OSLog.main.log("Palette: no other app came to the front; not opening")
+                        return
+                    }
+                    self.showPalette()
+                }
+            }
             return
         }
+
+        self.currentApp = front
+
+        guard let app = currentApp else {
+            OSLog.main.log("Palette: no app in front; not opening")
+            return
+        }
+        OSLog.main.log("Palette: opening over \(app.bundleIdentifier ?? "?", privacy: .public)")
 
         let windowFrame = PaletteSource.focusedWindowFrame(of: app)
         let pid = app.processIdentifier
