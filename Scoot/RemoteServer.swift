@@ -78,6 +78,12 @@ final class RemoteServer: @unchecked Sendable {
 
     private func handle(_ request: Remote.Request, on connection: NWConnection) {
 
+        // Belt and braces: the listener is stopped when the setting goes off.
+        guard UserDefaults.standard.bool(forKey: AppDelegate.remoteEnabledKey) else {
+            send(Remote.json(status: 404, ["error": "remote disabled"]), on: connection)
+            return
+        }
+
         let login: String
         switch Remote.authorize(request, allowedLogins: allowedLogins) {
         case .forbidden(let reason):
@@ -181,19 +187,20 @@ extension AppDelegate {
 
 extension AppDelegate {
 
-    private static let remoteEnabledKey = "RemoteEnabled"
     private static let remoteAllowedLoginsKey = "RemoteAllowedLogins"
     private static let remoteAddressKey = "RemoteAddress"
 
-    private static let remoteMenuTitle = "Phone Remote (Tailscale)"
     private static let remoteCopyTitle = "Copy Phone Remote Address"
     private static let remoteUsageTitle = "Copy Phone Remote Usage"
 
-    /// Adds the remote's items above Settings… and starts it if it was on.
+    /// The Settings switch (Settings → Remote). Off by default: until it is
+    /// on, nothing listens and the remote's menu items are hidden.
+    nonisolated static let remoteEnabledKey = "RemoteEnabled"
+
+    /// Adds the remote's items above Settings…, shown only while the remote
+    /// is enabled, and starts it if it is.
     func installRemoteMenuItems() {
 
-        let toggle = NSMenuItem(title: Self.remoteMenuTitle, action: #selector(toggleRemotePressed(_:)), keyEquivalent: "")
-        toggle.target = self
         let copy = NSMenuItem(title: Self.remoteCopyTitle, action: #selector(copyRemoteAddressPressed(_:)), keyEquivalent: "")
         copy.target = self
         let usage = NSMenuItem(title: Self.remoteUsageTitle, action: #selector(copyRemoteUsagePressed(_:)), keyEquivalent: "")
@@ -203,21 +210,18 @@ extension AppDelegate {
         menu.insertItem(.separator(), at: index)
         menu.insertItem(usage, at: index)
         menu.insertItem(copy, at: index)
-        menu.insertItem(toggle, at: index)
 
-        if UserDefaults.standard.bool(forKey: Self.remoteEnabledKey) {
-            startRemote()
-        }
-        refreshRemoteMenuItems()
+        applyRemoteSetting()
     }
 
-    @objc func toggleRemotePressed(_ sender: NSMenuItem) {
-        if remoteServer == nil {
+    /// Starts or stops the remote to match the setting.
+    func applyRemoteSetting() {
+        let enabled = UserDefaults.standard.bool(forKey: Self.remoteEnabledKey)
+        if enabled, remoteServer == nil {
             startRemote()
-        } else {
-            remoteServer?.stop()
+        } else if !enabled, let server = remoteServer {
+            server.stop()
             remoteServer = nil
-            UserDefaults.standard.set(false, forKey: Self.remoteEnabledKey)
             OSLog.main.log("Remote: stopped")
         }
         refreshRemoteMenuItems()
@@ -238,9 +242,10 @@ extension AppDelegate {
     }
 
     private func refreshRemoteMenuItems() {
-        let on = remoteServer != nil
-        menu.items.first { $0.title == Self.remoteMenuTitle }?.state = on ? .on : .off
-        menu.items.first { $0.title == Self.remoteCopyTitle }?.isHidden = !on
+        let on = UserDefaults.standard.bool(forKey: Self.remoteEnabledKey)
+        for title in [Self.remoteCopyTitle, Self.remoteUsageTitle] {
+            menu.items.first { $0.title == title }?.isHidden = !on
+        }
     }
 
     /// Starts listening, after learning from Tailscale who is signed in on
@@ -280,7 +285,6 @@ extension AppDelegate {
             return
         }
         remoteServer = server
-        UserDefaults.standard.set(true, forKey: Self.remoteEnabledKey)
         OSLog.main.log("Remote: listening on 127.0.0.1:\(Remote.port) for \(allowed.joined(separator: ", "), privacy: .public)")
     }
 

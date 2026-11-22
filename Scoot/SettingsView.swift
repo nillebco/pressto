@@ -54,6 +54,7 @@ struct SettingsView: View {
     private enum Tabs: Hashable {
         case keybindings
         case presentation
+        case remote
     }
 
     var body: some View {
@@ -77,6 +78,11 @@ struct SettingsView: View {
                     Label("Presentation", systemImage: "scribble.variable")
                 }
                 .tag(Tabs.presentation)
+            RemoteSettingsView()
+                .tabItem {
+                    Label("Remote", systemImage: "iphone")
+                }
+                .tag(Tabs.remote)
         }
         .padding(20)
         .frame(width: 460)
@@ -261,5 +267,31 @@ struct PresentationSettingsView_Previews: PreviewProvider {
             gridViewFontSize: .constant(18),
             elementViewFontSize: .constant(14)
         )
+    }
+}
+
+/// Pressto Remote: a web page, served to this Mac's Tailscale network only,
+/// that drives Pressto from a phone.
+struct RemoteSettingsView: View {
+
+    @AppStorage(AppDelegate.remoteEnabledKey) private var enabled = false
+    @AppStorage("RemoteAddress") private var address = ""
+
+    var body: some View {
+        Form {
+            Toggle("Enable Pressto Remote", isOn: $enabled)
+                .onChange(of: enabled) { _ in
+                    (NSApp.delegate as? AppDelegate)?.applyRemoteSetting()
+                }
+            Text("Lets your phone drive Pressto from a web page. Pressto listens on this Mac only (127.0.0.1:\(String(Remote.port))); publish it to your tailnet with `tailscale serve --bg http://127.0.0.1:\(String(Remote.port))`. Only your Tailscale login may use it. Never use `tailscale funnel`.")
+                .font(.subheadline)
+                .fixedSize(horizontal: false, vertical: true)
+            if enabled, !address.isEmpty {
+                Text("Address: \(address)")
+                    .textSelection(.enabled)
+            }
+        }
+        .padding(20)
+        .frame(width: 420)
     }
 }

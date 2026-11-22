@@ -75,7 +75,7 @@ Type a sequence and the pointer jumps there; then click, drag or nudge it from t
 
 Pressto can serve a remote control page to your phone, over your [Tailscale](https://tailscale.com) network only: a d-pad (move, scroll, or scroll all the way), Return and Esc, the four modes, play/pause and ±10 s for web players, and a text field that opens the palette with what you type or dictate (🎤 on the iOS keyboard).
 
-1. Turn it on from the menu bar icon: **Phone Remote (Tailscale)**. Pressto listens on `127.0.0.1:8765`, nothing else, and asks the Tailscale app who is signed in: that login becomes the only one allowed (`RemoteAllowedLogins` in Pressto's defaults).
+1. Turn it on in **Settings → Remote → Enable Pressto Remote** (off by default; while it's off nothing listens and the remote's menu items, *Copy Phone Remote Address* and *Copy Phone Remote Usage*, are hidden). Pressto then listens on `127.0.0.1:8765`, nothing else, and asks the Tailscale app who is signed in: that login becomes the only one allowed (`RemoteAllowedLogins` in Pressto's defaults).
 2. Publish it to your tailnet, once:
 
    ```sh
@@ -84,7 +84,7 @@ Pressto can serve a remote control page to your phone, over your [Tailscale](htt
 
 3. On the phone (signed in to the same tailnet), open the address from **Copy Phone Remote Address** (`https://<this-mac>.<tailnet>.ts.net/`) and add it to the home screen.
 
-`tailscale serve` tells Pressto who each request comes from; Pressto refuses anyone not on the list, any request that did not come through Tailscale, commands that are not JSON, and commands sent from another site's page. The commands are a closed set: keys from a fixed list (arrows, Return, Esc, Space, Tab, Delete, Home/End, Page Up/Down, letters and digits) with ⇧⌃⌥⌘, typing up to 200 characters, opening a mode, and a palette search. To stop, untick the menu item; to unpublish, `tailscale serve --https=443 off`.
+`tailscale serve` tells Pressto who each request comes from; Pressto refuses anyone not on the list, any request that did not come through Tailscale, commands that are not JSON, and commands sent from another site's page. The commands are a closed set: keys from a fixed list (arrows, Return, Esc, Space, Tab, Delete, Home/End, Page Up/Down, letters and digits) with ⇧⌃⌥⌘, typing up to 200 characters, opening a mode, and a palette search. Pressto counts which buttons are used, on this Mac only; *Copy Phone Remote Usage* copies the counts and the buttons never pressed. To stop, untick the setting; to unpublish, `tailscale serve --https=443 off`.
 
 ## About
 
