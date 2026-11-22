@@ -1,4 +1,5 @@
 import AppKit
+import AXSwift
 import Network
 import OSLog
 
@@ -306,7 +307,39 @@ extension AppDelegate {
             return goToSiteHome()
         case .press(let labels):
             return pressNamed(labels)
+        case .siteSearch(let labels):
+            return focusSiteSearch() ?? pressNamed(labels)
         }
+    }
+
+    /// Focuses the first search field inside the page (`AXSearchField`, which
+    /// is how WebKit exposes `<input type=search>` and `role=searchbox`), and
+    /// selects its text so a new query replaces the old one. Never Safari's
+    /// address bar: only fields below an `AXWebArea` count.
+    private func focusSiteSearch() -> String? {
+        guard let running = NSWorkspace.shared.frontmostApplication, running != .current,
+              let app = Application(running),
+              let window: UIElement = try? app.attribute(.focusedWindow) else {
+            return nil
+        }
+        var queue: [(UIElement, Bool, Int)] = [(window, false, 0)]
+        var visited = 0
+        while !queue.isEmpty, visited < 3000 {
+            let (node, inPage, depth) = queue.removeFirst()
+            visited += 1
+            let role = node.string("AXRole") ?? ""
+            if inPage, ["AXTextField", "AXComboBox"].contains(role), node.string("AXSubrole") == "AXSearchField" {
+                guard (try? node.setAttribute(.focused, value: true)) != nil else { continue }
+                usleep(60000)
+                RemoteKeys.post(code: Remote.keyCodes["a"]!, modifiers: .command)
+                OSLog.main.log("Remote: focused the page's search field")
+                return "search field focused"
+            }
+            guard depth < 40, let children: [UIElement] = try? node.arrayAttribute(.children) else { continue }
+            let nowInPage = inPage || role == "AXWebArea"
+            queue += children.filter { $0 != node }.map { ($0, nowInPage, depth + 1) }
+        }
+        return nil
     }
 
     /// Opens the palette over the app being watched, never over Pressto's own

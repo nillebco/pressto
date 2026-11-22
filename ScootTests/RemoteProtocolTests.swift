@@ -107,6 +107,7 @@ final class RemoteProtocolTests: XCTestCase {
 
     func testDecodesShortcuts() {
         XCTAssertEqual(Remote.decode(request("POST", "/v1/locate", body: "{}")), .success(.locatePointer))
+        XCTAssertEqual(Remote.decode(request("POST", "/v1/sitesearch", body: #"{"labels":["Search"]}"#)), .success(.siteSearch(["Search"])))
         XCTAssertEqual(Remote.decode(request("POST", "/v1/home", body: "{}")), .success(.siteHome))
         XCTAssertEqual(Remote.decode(request("POST", "/v1/press", body: #"{"labels":["Search","Rechercher"]}"#)), .success(.press(["Search", "Rechercher"])))
         XCTAssertEqual(Remote.decode(request("POST", "/v1/press", body: #"{"labels":[]}"#)), .failure(.invalid("labels must be 1–10 names")))

@@ -177,7 +177,7 @@
   document.getElementById('locate').addEventListener('click', () => send('/v1/locate', {}));
   document.getElementById('sitehome').addEventListener('click', () => send('/v1/home', {}));
   document.getElementById('sitesearch').addEventListener('click', () =>
-    send('/v1/press', { labels: ['Search', 'Rechercher', 'Recherche', 'Cerca', 'Open search', 'Ouvrir la recherche'] }));
+    send('/v1/sitesearch', { labels: ['Search', 'Rechercher', 'Recherche', 'Cerca', 'Open search', 'Ouvrir la recherche'] }));
   document.querySelector('[data-scroll-top]').addEventListener('click', () => send('/v1/scroll', { direction: 'up', all: true }));
 
   const input = document.getElementById('text');
