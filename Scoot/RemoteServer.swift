@@ -166,6 +166,17 @@ enum RemoteKeys {
 /// The running server, when the remote is on.
 @MainActor private var remoteServer: RemoteServer?
 
+/// Set once a delayed search-field focus succeeded, so later retries do not
+/// select the text the user has started typing.
+@MainActor private var searchFocusFlag = false
+
+extension AppDelegate {
+    fileprivate var searchFocusedRecently: Bool {
+        get { searchFocusFlag }
+        set { searchFocusFlag = newValue }
+    }
+}
+
 extension AppDelegate {
 
     private static let remoteEnabledKey = "RemoteEnabled"
@@ -308,7 +319,26 @@ extension AppDelegate {
         case .press(let labels):
             return pressNamed(labels)
         case .siteSearch(let labels):
-            return focusSiteSearch() ?? pressNamed(labels)
+            if let focused = focusSiteSearch() {
+                return focused
+            }
+            // Sites such as Canal+ only add the search field once their
+            // "Rechercher" button is pressed: press it, then focus the field
+            // when it appears.
+            let pressed = pressNamed(labels)
+            guard pressed.hasPrefix("pressed") else {
+                return pressed
+            }
+            for delay in [0.5, 1.0, 1.8] {
+                DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+                    guard let self, !self.searchFocusedRecently else { return }
+                    if self.focusSiteSearch() != nil {
+                        self.searchFocusedRecently = true
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { self.searchFocusedRecently = false }
+                    }
+                }
+            }
+            return pressed + "; waiting for the search field"
         }
     }
 
