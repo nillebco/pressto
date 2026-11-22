@@ -193,6 +193,13 @@ enum Remote {
         /// Presses the first control of the front window named one of these
         /// (case-insensitive), without opening the palette.
         case press([String])
+        /// The Mac's output volume (not the site player's, which is the `m`
+        /// key and the player's own controls).
+        case volume(VolumeChange)
+    }
+
+    enum VolumeChange: String, Sendable {
+        case up, down, mute
     }
 
     enum Direction: String, Sendable {
@@ -230,7 +237,7 @@ enum Remote {
 
     static func decode(_ request: Request) -> Result<Command, DecodeError> {
 
-        let routes = ["/v1/key", "/v1/type", "/v1/mode", "/v1/search", "/v1/scroll", "/v1/focus", "/v1/locate", "/v1/home", "/v1/press", "/v1/sitesearch"]
+        let routes = ["/v1/key", "/v1/type", "/v1/mode", "/v1/search", "/v1/scroll", "/v1/focus", "/v1/locate", "/v1/home", "/v1/press", "/v1/sitesearch", "/v1/volume"]
         guard routes.contains(request.path) else {
             return .failure(.notFound)
         }
@@ -278,6 +285,12 @@ enum Remote {
                 return .failure(.invalid("labels must be 1–10 names"))
             }
             return .success(.press(labels))
+
+        case "/v1/volume":
+            guard let name = object["change"] as? String, let change = VolumeChange(rawValue: name) else {
+                return .failure(.invalid("unknown volume change"))
+            }
+            return .success(.volume(change))
 
         case "/v1/mode":
             guard let name = object["mode"] as? String, let mode = Mode(rawValue: name) else {

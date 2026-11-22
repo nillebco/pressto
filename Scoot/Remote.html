@@ -96,7 +96,16 @@
 <div class="row r3">
   <button data-key="f" aria-label="Video full screen (the site's player; Esc leaves it)">Video ⛶</button>
   <button data-key="f" data-mods="control command" aria-label="Safari window full screen">Window ⛶</button>
-  <button data-key="m">Mute</button>
+  <span></span>
+</div>
+<label class="cap">Sound</label>
+<div class="row r2">
+  <button data-key="m" aria-label="Mute or unmute the video player (m)">Player 🔇 (m)</button>
+  <button data-volume="mute" aria-label="Mute or unmute the Mac">Mac 🔇</button>
+</div>
+<div class="row r2">
+  <button data-volume="down" aria-label="Mac volume down">Mac 🔉 −</button>
+  <button data-volume="up" aria-label="Mac volume up">Mac 🔊 +</button>
 </div>
 <div class="row r2">
   <button data-key="0" aria-label="Back to the start (YouTube)">Start (0)</button>
@@ -171,6 +180,12 @@
       arrows = button.dataset.arrows;
       document.querySelectorAll('[data-arrows]').forEach((b) => b.setAttribute('aria-pressed', String(b === button)));
     });
+  });
+
+  document.querySelectorAll('[data-volume]').forEach((button) => {
+    const change = () => send('/v1/volume', { change: button.dataset.volume });
+    if (button.dataset.volume === 'mute') button.addEventListener('click', change);
+    else repeatable(button, change);
   });
 
   document.getElementById('tv').addEventListener('click', () => send('/v1/focus', {}));

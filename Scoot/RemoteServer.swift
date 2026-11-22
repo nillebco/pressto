@@ -316,6 +316,8 @@ extension AppDelegate {
             return "pointer"
         case .siteHome:
             return goToSiteHome()
+        case .volume(let change):
+            return MacVolume.change(change)
         case .press(let labels):
             return pressNamed(labels)
         case .siteSearch(let labels):
@@ -586,5 +588,34 @@ enum PointerLocator {
                 self.window = nil
             }
         }
+    }
+}
+
+/// The Mac's output volume, through Standard Additions: no private API, no
+/// extra permission.
+enum MacVolume {
+
+    static let step = 6
+
+    static func change(_ change: Remote.VolumeChange) -> String {
+        let script = switch change {
+        case .up: """
+            set volume output muted false
+            set volume output volume ((output volume of (get volume settings)) + \(step))
+            """
+        case .down: "set volume output volume ((output volume of (get volume settings)) - \(step))"
+        case .mute: "set volume output muted (not (output muted of (get volume settings)))"
+        }
+        let report = """
+            set s to get volume settings
+            if output muted of s then return "Mac muted"
+            return "Mac volume " & (output volume of s)
+            """
+        var error: NSDictionary?
+        guard let result = NSAppleScript(source: script + "\n" + report)?.executeAndReturnError(&error).stringValue else {
+            OSLog.main.error("Remote: volume failed: \(String(describing: error), privacy: .public)")
+            return "volume failed"
+        }
+        return result
     }
 }
