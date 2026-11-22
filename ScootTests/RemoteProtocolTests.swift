@@ -119,6 +119,18 @@ final class RemoteProtocolTests: XCTestCase {
         XCTAssertEqual(Remote.decode(request("POST", "/v1/volume", body: #"{"change":"max"}"#)), .failure(.invalid("unknown volume change")))
     }
 
+    func testDecodesTabs() {
+        XCTAssertEqual(Remote.decode(request("POST", "/v1/tabs", body: "{}")), .success(.listTabs))
+        XCTAssertEqual(Remote.decode(request("POST", "/v1/tab", body: #"{"index":3}"#)), .success(.selectTab(3)))
+        XCTAssertEqual(Remote.decode(request("POST", "/v1/tab", body: #"{"index":0}"#)), .failure(.invalid("unknown tab")))
+    }
+
+    func testReadsTheControlName() {
+        XCTAssertEqual(Remote.uiName(of: request(body: #"{"key":"m","ui":"Player mute"}"#)), "Player mute")
+        XCTAssertNil(Remote.uiName(of: request(body: #"{"key":"m"}"#)))
+        XCTAssertNil(Remote.uiName(of: request(body: #"{"key":"m","ui":"a\nb"}"#)))
+    }
+
     func testRefusesUnprintableOrLongText() {
         XCTAssertNotEqual(Remote.decode(request("POST", "/v1/type", body: #"{"text":"a\nb"}"#)), .success(.type("a\nb")))
         let long = String(repeating: "a", count: Remote.maximumTextLength + 1)

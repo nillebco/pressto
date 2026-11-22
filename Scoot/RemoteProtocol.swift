@@ -196,6 +196,10 @@ enum Remote {
         /// The Mac's output volume (not the site player's, which is the `m`
         /// key and the player's own controls).
         case volume(VolumeChange)
+        /// The TV app's front-window tabs, as `[{index, title, host}]`.
+        case listTabs
+        /// Brings tab `index` (1-based) of the front window forward.
+        case selectTab(Int)
     }
 
     enum VolumeChange: String, Sendable {
@@ -237,7 +241,7 @@ enum Remote {
 
     static func decode(_ request: Request) -> Result<Command, DecodeError> {
 
-        let routes = ["/v1/key", "/v1/type", "/v1/mode", "/v1/search", "/v1/scroll", "/v1/focus", "/v1/locate", "/v1/home", "/v1/press", "/v1/sitesearch", "/v1/volume"]
+        let routes = ["/v1/key", "/v1/type", "/v1/mode", "/v1/search", "/v1/scroll", "/v1/focus", "/v1/locate", "/v1/home", "/v1/press", "/v1/sitesearch", "/v1/volume", "/v1/tabs", "/v1/tab"]
         guard routes.contains(request.path) else {
             return .failure(.notFound)
         }
@@ -292,6 +296,15 @@ enum Remote {
             }
             return .success(.volume(change))
 
+        case "/v1/tabs":
+            return .success(.listTabs)
+
+        case "/v1/tab":
+            guard let index = object["index"] as? Int, (1...500).contains(index) else {
+                return .failure(.invalid("unknown tab"))
+            }
+            return .success(.selectTab(index))
+
         case "/v1/mode":
             guard let name = object["mode"] as? String, let mode = Mode(rawValue: name) else {
                 return .failure(.invalid("unknown mode"))
@@ -306,6 +319,19 @@ enum Remote {
             }
             return .success(request.path == "/v1/type" ? .type(text) : .search(text))
         }
+    }
+
+    /// Which control of the page sent a command, for the usage counts: the
+    /// page adds `"ui": "<button name>"` to every body. Short and printable,
+    /// else nil (the route is counted instead).
+    static func uiName(of request: Request) -> String? {
+        guard let object = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any],
+              let name = (object["ui"] as? String)?.trimmingCharacters(in: .whitespaces),
+              !name.isEmpty, name.count <= 60,
+              !name.contains(where: { $0.isNewline || ($0.asciiValue.map { $0 < 0x20 } ?? false) }) else {
+            return nil
+        }
+        return name
     }
 
     /// How to type each character: a real key where there is one (so element

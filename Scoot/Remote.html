@@ -40,6 +40,11 @@
   form { display: grid; grid-template-columns: 1fr auto auto auto; gap: 8px; }
   input { width: 100%; min-width: 0; border: 0; border-radius: 12px; background: var(--key); color: var(--text);
     font: inherit; font-size: 17px; padding: 12px 14px; user-select: text; -webkit-user-select: text; }
+  details { margin-bottom: 10px; background: var(--key); border-radius: var(--radius); }
+  summary { padding: 14px 16px; font-size: 15px; list-style-position: inside; }
+  #tablist { display: grid; gap: 6px; padding: 0 8px 8px; }
+  #tablist button { text-align: left; padding: 10px 12px; min-height: 48px; background: var(--bg); }
+  #tablist small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
   form button { min-height: 0; padding: 12px 14px; }
 </style>
 </head>
@@ -47,23 +52,27 @@
 <h1><span>Pressto</span><span id="status" aria-live="polite">ready</span></h1>
 
 <div class="row">
-  <button id="tv" class="primary">⟲ Back to TV</button>
+  <button data-ui="Back to TV" id="tv" class="primary">⟲ Back to TV</button>
 </div>
+<details id="tabs">
+  <summary data-ui="Open tabs">Open tabs</summary>
+  <div id="tablist"></div>
+</details>
 <div class="row r3">
-  <button id="locate" aria-label="Show where the pointer is">◎ Pointer</button>
-  <button id="sitesearch" aria-label="Open the site's search">🔍 Site search</button>
-  <button id="sitehome" aria-label="Go to the site's home page">⌂ Site home</button>
+  <button data-ui="Pointer" id="locate" aria-label="Show where the pointer is">◎ Pointer</button>
+  <button data-ui="Site search" id="sitesearch" aria-label="Open the site's search">🔍 Site search</button>
+  <button data-ui="Site home" id="sitehome" aria-label="Go to the site's home page">⌂ Site home</button>
 </div>
 <div class="row r2">
-  <button data-key="leftbracket" data-mods="command" aria-label="Previous page">◀ Page</button>
-  <button data-key="rightbracket" data-mods="command" aria-label="Next page">Page ▶</button>
+  <button data-ui="Page back" data-key="leftbracket" data-mods="command" aria-label="Previous page">◀ Page</button>
+  <button data-ui="Page forward" data-key="rightbracket" data-mods="command" aria-label="Next page">Page ▶</button>
 </div>
 
 <div class="row r4">
-  <button data-mode="palette">Palette</button>
-  <button data-mode="labels">Labels</button>
-  <button data-mode="freestyle">Free</button>
-  <button data-mode="grid">Grid</button>
+  <button data-ui="Palette" data-mode="palette">Palette</button>
+  <button data-ui="Labels" data-mode="labels">Labels</button>
+  <button data-ui="Freestyle" data-mode="freestyle">Free</button>
+  <button data-ui="Grid" data-mode="grid">Grid</button>
 </div>
 
 <label class="cap" id="arrows-cap">Arrows</label>
@@ -74,55 +83,60 @@
 </div>
 
 <div class="pad">
-  <span></span><button data-arrow="up" aria-label="Up">▲</button><span></span>
-  <button data-arrow="left" aria-label="Left">◀</button>
-  <button class="ok" data-key="return" aria-label="Return">OK</button>
-  <button data-arrow="right" aria-label="Right">▶</button>
-  <span></span><button data-arrow="down" aria-label="Down">▼</button><span></span>
+  <span></span><button data-ui="Up" data-arrow="up" aria-label="Up">▲</button><span></span>
+  <button data-ui="Left" data-arrow="left" aria-label="Left">◀</button>
+  <button data-ui="OK" class="ok" data-key="return" aria-label="Return">OK</button>
+  <button data-ui="Right" data-arrow="right" aria-label="Right">▶</button>
+  <span></span><button data-ui="Down" data-arrow="down" aria-label="Down">▼</button><span></span>
 </div>
 
 <div class="row r3">
-  <button data-key="escape">Esc</button>
-  <button data-key="tab">Tab</button>
-  <button data-key="delete" aria-label="Delete">⌫</button>
+  <button data-ui="Esc" data-key="escape">Esc</button>
+  <button data-ui="Tab" data-key="tab">Tab</button>
+  <button data-ui="Delete (pad)" data-key="delete" aria-label="Delete">⌫</button>
 </div>
 
 <label class="cap">Playback</label>
 <div class="row r3">
-  <button data-key="left" aria-label="Back 10 seconds">−10 s</button>
-  <button data-key="space" class="primary" aria-label="Play or pause">⏯</button>
-  <button data-key="right" aria-label="Forward 10 seconds">+10 s</button>
+  <button data-ui="−10 s" data-key="left" aria-label="Back 10 seconds">−10 s</button>
+  <button data-ui="Play/pause" data-key="space" class="primary" aria-label="Play or pause">⏯</button>
+  <button data-ui="+10 s" data-key="right" aria-label="Forward 10 seconds">+10 s</button>
 </div>
 <div class="row r3">
-  <button data-key="f" aria-label="Video full screen (the site's player; Esc leaves it)">Video ⛶</button>
-  <button data-key="f" data-mods="control command" aria-label="Safari window full screen">Window ⛶</button>
+  <button data-ui="Video full screen" data-key="f" aria-label="Video full screen (the site's player; Esc leaves it)">Video ⛶</button>
+  <button data-ui="Window full screen" data-key="f" data-mods="control command" aria-label="Safari window full screen">Window ⛶</button>
   <span></span>
 </div>
 <label class="cap">Sound</label>
 <div class="row r2">
-  <button data-key="m" aria-label="Mute or unmute the video player (m)">Player 🔇 (m)</button>
-  <button data-volume="mute" aria-label="Mute or unmute the Mac">Mac 🔇</button>
+  <button data-ui="Player mute" data-key="m" aria-label="Mute or unmute the video player (m)">Player 🔇 (m)</button>
+  <button data-ui="Mac mute" data-volume="mute" aria-label="Mute or unmute the Mac">Mac 🔇</button>
 </div>
 <div class="row r2">
-  <button data-volume="down" aria-label="Mac volume down">Mac 🔉 −</button>
-  <button data-volume="up" aria-label="Mac volume up">Mac 🔊 +</button>
+  <button data-ui="Mac volume down" data-volume="down" aria-label="Mac volume down">Mac 🔉 −</button>
+  <button data-ui="Mac volume up" data-volume="up" aria-label="Mac volume up">Mac 🔊 +</button>
 </div>
 <div class="row r2">
-  <button data-key="0" aria-label="Back to the start (YouTube)">Start (0)</button>
-  <button data-scroll-top aria-label="Scroll back to the top">Top of page</button>
+  <button data-ui="Start (0)" data-key="0" aria-label="Back to the start (YouTube)">Start (0)</button>
+  <button data-ui="Top of page" data-scroll-top aria-label="Scroll back to the top">Top of page</button>
 </div>
 
 <label class="cap" for="text">Search or type (🎤 on the keyboard to dictate)</label>
 <form id="form" autocomplete="off">
   <input id="text" type="text" enterkeyhint="search" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="skip intro, youtube…">
-  <button type="submit" class="primary">Search</button>
-  <button type="button" id="type">Type</button>
-  <button type="button" data-key="delete" aria-label="Delete on the Mac">⌫</button>
+  <button data-ui="Search (text)" type="submit" class="primary">Search</button>
+  <button data-ui="Type (text)" type="button" id="type">Type</button>
+  <button data-ui="Delete (text)" type="button" data-key="delete" aria-label="Delete on the Mac">⌫</button>
 </form>
 
 <script>
   const status = document.getElementById('status');
   let arrows = 'move';
+  let control = null; // data-ui of the last button touched, for the usage counts
+  document.addEventListener('pointerdown', (event) => {
+    const button = event.target.closest('[data-ui]');
+    if (button) control = button.dataset.ui + (button.dataset.arrow ? ' · ' + arrows : '');
+  }, true);
 
   function show(text, cls) {
     status.textContent = text;
@@ -134,13 +148,15 @@
       const response = await fetch(path, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        body: JSON.stringify(control ? { ...body, ui: control } : body),
       });
       const data = await response.json().catch(() => ({}));
-      if (response.ok) show(data.detail || 'ok', 'ok');
+      if (response.ok) show(typeof data.detail === 'string' ? data.detail : 'ok', 'ok');
       else show(data.error || ('error ' + response.status), 'err');
+      return response.ok ? data.detail : null;
     } catch (error) {
       show('offline', 'err');
+      return null;
     }
   }
 
@@ -188,6 +204,31 @@
     else repeatable(button, change);
   });
 
+  // Open tabs: read when the section opens, one button per tab.
+  const tabs = document.getElementById('tabs');
+  const tablist = document.getElementById('tablist');
+  async function loadTabs() {
+    tablist.textContent = 'Loading…';
+    const list = await send('/v1/tabs', {});
+    tablist.textContent = '';
+    if (!Array.isArray(list) || !list.length) { tablist.textContent = 'No tabs'; return; }
+    show(list.length + ' tabs', 'ok');
+    for (const tab of list) {
+      const button = document.createElement('button');
+      button.dataset.ui = 'Tab (from list)';
+      button.textContent = tab.title || tab.host || ('Tab ' + tab.index);
+      const host = document.createElement('small');
+      host.textContent = tab.host;
+      button.append(host);
+      button.addEventListener('click', async () => {
+        await send('/v1/tab', { index: tab.index });
+        tabs.open = false;
+      });
+      tablist.append(button);
+    }
+  }
+  tabs.addEventListener('toggle', () => { if (tabs.open) loadTabs(); });
+
   document.getElementById('tv').addEventListener('click', () => send('/v1/focus', {}));
   document.getElementById('locate').addEventListener('click', () => send('/v1/locate', {}));
   document.getElementById('sitehome').addEventListener('click', () => send('/v1/home', {}));
@@ -198,6 +239,7 @@
   const input = document.getElementById('text');
   document.getElementById('form').addEventListener('submit', (event) => {
     event.preventDefault();
+    control = 'Search (text)'; // Enter on the keyboard, not only the button
     const text = input.value.trim();
     if (text) send('/v1/search', { text });
     input.value = '';

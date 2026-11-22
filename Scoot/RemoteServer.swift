@@ -9,7 +9,7 @@ import OSLog
 /// close. `tailscale serve` is the only intended client.
 final class RemoteServer: @unchecked Sendable {
 
-    typealias Executor = @MainActor @Sendable (Remote.Command) -> String
+    typealias Executor = @MainActor @Sendable (Remote.Command) -> Any
 
     private let queue = DispatchQueue(label: "co.nillebco.pressto.remote")
     private var listener: NWListener?
@@ -109,9 +109,11 @@ final class RemoteServer: @unchecked Sendable {
             send(Remote.json(status: 400, ["error": message]), on: connection)
         case .success(let command):
             let execute = self.execute
+            let control = Remote.uiName(of: request) ?? request.path
             DispatchQueue.main.async {
-                let detail = MainActor.assumeIsolated { execute(command) }
-                self.send(Remote.json(status: 200, ["ok": true, "detail": detail]), on: connection)
+                RemoteUsage.record(control)
+                let response = MainActor.assumeIsolated { Remote.json(status: 200, ["ok": true, "detail": execute(command)]) }
+                self.send(response, on: connection)
             }
         }
     }
@@ -185,6 +187,7 @@ extension AppDelegate {
 
     private static let remoteMenuTitle = "Phone Remote (Tailscale)"
     private static let remoteCopyTitle = "Copy Phone Remote Address"
+    private static let remoteUsageTitle = "Copy Phone Remote Usage"
 
     /// Adds the remote's items above Settings… and starts it if it was on.
     func installRemoteMenuItems() {
@@ -193,9 +196,12 @@ extension AppDelegate {
         toggle.target = self
         let copy = NSMenuItem(title: Self.remoteCopyTitle, action: #selector(copyRemoteAddressPressed(_:)), keyEquivalent: "")
         copy.target = self
+        let usage = NSMenuItem(title: Self.remoteUsageTitle, action: #selector(copyRemoteUsagePressed(_:)), keyEquivalent: "")
+        usage.target = self
 
         let index = menu.items.firstIndex { $0.title.hasPrefix("Settings") } ?? menu.items.count
         menu.insertItem(.separator(), at: index)
+        menu.insertItem(usage, at: index)
         menu.insertItem(copy, at: index)
         menu.insertItem(toggle, at: index)
 
@@ -215,6 +221,11 @@ extension AppDelegate {
             OSLog.main.log("Remote: stopped")
         }
         refreshRemoteMenuItems()
+    }
+
+    @objc func copyRemoteUsagePressed(_ sender: NSMenuItem) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(RemoteUsage.report(), forType: .string)
     }
 
     @objc func copyRemoteAddressPressed(_ sender: NSMenuItem) {
@@ -273,7 +284,7 @@ extension AppDelegate {
         OSLog.main.log("Remote: listening on 127.0.0.1:\(Remote.port) for \(allowed.joined(separator: ", "), privacy: .public)")
     }
 
-    private func runRemote(_ command: Remote.Command) -> String {
+    private func runRemote(_ command: Remote.Command) -> Any {
         switch command {
         case let .key(code, modifiers):
             RemoteKeys.post(code: code, modifiers: modifiers)
@@ -318,6 +329,10 @@ extension AppDelegate {
             return goToSiteHome()
         case .volume(let change):
             return MacVolume.change(change)
+        case .listTabs:
+            return remoteTabs()
+        case .selectTab(let index):
+            return selectRemoteTab(index)
         case .press(let labels):
             return pressNamed(labels)
         case .siteSearch(let labels):
@@ -474,6 +489,26 @@ extension AppDelegate {
         mouse.scroll(to, stepSize: step)
     }
 
+    private var tvApp: String {
+        UserDefaults.standard.string(forKey: "RemoteTVApp") ?? "com.apple.Safari"
+    }
+
+    /// The TV app's front-window tabs, for the page's tab list.
+    private func remoteTabs() -> [[String: Any]] {
+        ScriptableBrowsers.beginReadingFrontWindow(of: tvApp, timeout: 1.5)().map { tab in
+            ["index": tab.index, "title": tab.title, "host": tab.url?.host ?? ""]
+        }
+    }
+
+    private func selectRemoteTab(_ index: Int) -> String {
+        let bundleIdentifier = tvApp
+        let tab = ScriptableBrowsers.Tab(index: index, title: "", url: nil)
+        PaletteSource.leavingFullScreenVideo(of: bundleIdentifier) {
+            ScriptableBrowsers.select(tab, in: bundleIdentifier)
+        }
+        return "tab \(index)"
+    }
+
     /// The app the remote drives, Safari unless `RemoteTVApp` names another.
     private func focusTV() -> String {
         let bundleIdentifier = UserDefaults.standard.string(forKey: "RemoteTVApp") ?? "com.apple.Safari"
@@ -617,5 +652,50 @@ enum MacVolume {
             return "volume failed"
         }
         return result
+    }
+}
+
+/// How often each control of the phone remote is used, kept on this Mac only
+/// (user defaults), to learn which buttons earn their place.
+enum RemoteUsage {
+
+    private static let key = "RemoteUsage"
+    private static let sinceKey = "RemoteUsageSince"
+
+    @MainActor static func record(_ control: String) {
+        let defaults = UserDefaults.standard
+        var counts = defaults.dictionary(forKey: key) as? [String: Int] ?? [:]
+        counts[control, default: 0] += 1
+        defaults.set(counts, forKey: key)
+        if defaults.object(forKey: sinceKey) == nil {
+            defaults.set(Date(), forKey: sinceKey)
+        }
+    }
+
+    /// Most used first; the buttons of the page never pressed at the end.
+    @MainActor static func report() -> String {
+        let defaults = UserDefaults.standard
+        let counts = defaults.dictionary(forKey: key) as? [String: Int] ?? [:]
+        let since = (defaults.object(forKey: sinceKey) as? Date).map { $0.formatted(date: .abbreviated, time: .omitted) } ?? "never"
+        var lines = ["Pressto remote usage since \(since)"]
+        lines += counts.sorted { $0.value != $1.value ? $0.value > $1.value : $0.key < $1.key }.map { "\($0.value)\t\($0.key)" }
+        let unused = pageControls().filter { name in !counts.keys.contains { $0 == name || $0.hasPrefix(name + " · ") } }
+        if !unused.isEmpty {
+            lines += ["", "Never used:"] + unused.map { "0\t\($0)" }
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    /// The names the page reports, read from its `data-ui` attributes.
+    private static func pageControls() -> [String] {
+        guard let url = Bundle.main.url(forResource: "Remote", withExtension: "html"),
+              let html = try? String(contentsOf: url, encoding: .utf8),
+              let pattern = try? NSRegularExpression(pattern: #"data-ui="([^"]+)""#) else {
+            return []
+        }
+        let range = NSRange(html.startIndex..., in: html)
+        return pattern.matches(in: html, range: range).compactMap { match in
+            Range(match.range(at: 1), in: html).map { String(html[$0]) }
+        }
     }
 }
