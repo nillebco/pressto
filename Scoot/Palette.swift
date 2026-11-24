@@ -465,9 +465,23 @@ enum PaletteSource {
         }
 
         if let frame = item.frame {
+            // A sheet's (disabled-to-AX) button only takes the click once its
+            // window is frontmost, raised and has seen the pointer arrive:
+            // Safari's camera/microphone prompt ignored a click posted 20 ms
+            // after activation, but takes one with the window raised and a
+            // pause after the move.
+            if item.clickInsteadOfPress {
+                if let pid = try? element.pid() {
+                    AXUIElementSetAttributeValue(AXUIElementCreateApplication(pid), kAXFrontmostAttribute as CFString, kCFBooleanTrue)
+                }
+                if let window: UIElement = try? element.attribute(.window) {
+                    try? window.performAction(.raise)
+                }
+                usleep(150_000)
+            }
             let mouse = Mouse()
             mouse.move(to: CGPoint(x: frame.midX, y: frame.midY))
-            usleep(20000)
+            usleep(item.clickInsteadOfPress ? 250_000 : 20000)
             mouse.click(button: .left)
             return true
         }
