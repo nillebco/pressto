@@ -552,6 +552,7 @@ enum PaletteSource {
             return true
         }
 
+        OSLog.main.log("Palette: perform \(item.role, privacy: .public) click=\(item.clickInsteadOfPress, privacy: .public) frame=\(item.frame.map { "\($0)" } ?? "nil", privacy: .public)")
         guard let element = item.element else {
             return false
         }
@@ -573,10 +574,42 @@ enum PaletteSource {
         }
 
         if let frame = item.frame {
+            // A sheet's (disabled-to-AX) button only takes the click once its
+            // window is frontmost, raised and has seen the pointer arrive:
+            // Safari's camera/microphone prompt ignored a click posted 20 ms
+            // after activation, but takes one with the window raised and a
+            // pause after the move.
+            if item.clickInsteadOfPress {
+                if let pid = try? element.pid() {
+                    AXUIElementSetAttributeValue(AXUIElementCreateApplication(pid), kAXFrontmostAttribute as CFString, kCFBooleanTrue)
+                }
+                if let window: UIElement = try? element.attribute(.window) {
+                    try? window.performAction(.raise)
+                    try? window.setAttribute(.main, value: true)
+                    try? window.setAttribute(.focused, value: true)
+                }
+                usleep(150_000)
+            }
             let mouse = Mouse()
             mouse.move(to: CGPoint(x: frame.midX, y: frame.midY))
-            usleep(20000)
-            mouse.click(button: .left)
+            usleep(item.clickInsteadOfPress ? 250_000 : 20000)
+            if item.clickInsteadOfPress {
+                let front = NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "?"
+                OSLog.main.log("Palette: clicking \(item.role, privacy: .public) at \(Int(frame.midX), privacy: .public),\(Int(frame.midY), privacy: .public) (Cocoa); frontmost \(front, privacy: .public)")
+                // The first click can be spent on focusing the window; click
+                // again while the button is still there.
+                for attempt in 1...2 {
+                    mouse.pressDown(.left)
+                    usleep(60_000)
+                    mouse.release(.left)
+                    usleep(300_000)
+                    let gone = (try? element.attribute(.role) as String?) == nil
+                    OSLog.main.log("Palette: click \(attempt, privacy: .public): button \(gone ? "gone" : "still there", privacy: .public)")
+                    if gone { break }
+                }
+            } else {
+                mouse.click(button: .left)
+            }
             return true
         }
 
