@@ -1,6 +1,11 @@
 import AppKit
+import OSLog
 
 /// A borderless panel that can still take keyboard focus.
+///
+/// It is non-activating, like Spotlight's: it takes the keyboard without
+/// making Pressto the active app, so showing it does not depend on
+/// `NSApp.activate`, which macOS may refuse under cooperative activation.
 private final class PalettePanel: NSPanel {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { true }
@@ -35,6 +40,10 @@ final class PaletteController: NSObject {
     private var rows = [Row]()
 
     private lazy var panel: PalettePanel = makePanel()
+
+    /// Bumped on every `show` and `close`, so a late visibility check can tell
+    /// whether it still concerns the palette the user asked for.
+    private var showGeneration = 0
     private let searchField = NSTextField()
     private let tableView = NSTableView()
 
@@ -70,9 +79,39 @@ final class PaletteController: NSObject {
         origin.y = min(max(origin.y, visible.minY), visible.maxY - size.height)
 
         panel.setFrameOrigin(origin)
+        present()
 
-        panel.makeKeyAndOrderFront(nil)
+        showGeneration += 1
+        verifyVisible(generation: showGeneration, rebuilt: false)
+    }
+
+    private func present() {
+        panel.orderFrontRegardless()
+        panel.makeKey()
         panel.makeFirstResponder(searchField)
+    }
+
+    /// A moment after showing, checks that the panel really reached the screen.
+    /// If it did not, logs a fault and rebuilds the panel once: a palette that
+    /// silently never appears is worse than a glitch that leaves a trace.
+    private func verifyVisible(generation: Int, rebuilt: Bool) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self, generation == self.showGeneration else { return }
+                if self.panel.isVisible && self.panel.isKeyWindow {
+                    return
+                }
+                OSLog.main.fault("Palette: panel not on screen after show (visible: \(self.panel.isVisible, privacy: .public), key: \(self.panel.isKeyWindow, privacy: .public), rebuilt: \(rebuilt, privacy: .public))")
+                guard !rebuilt else { return }
+                let frame = self.panel.frame
+                self.panel.delegate = nil
+                self.panel.orderOut(nil)
+                self.panel = self.makePanel()
+                self.panel.setFrame(frame, display: false)
+                self.present()
+                self.verifyVisible(generation: generation, rebuilt: true)
+            }
+        }
     }
 
     /// Replaces the items while the palette is open (the window scan landing
@@ -83,6 +122,7 @@ final class PaletteController: NSObject {
     }
 
     func close() {
+        showGeneration += 1
         closing = true
         panel.orderOut(nil)
         closing = false

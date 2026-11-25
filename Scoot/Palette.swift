@@ -315,7 +315,11 @@ enum PaletteSource {
                         role: role,
                         element: child,
                         frame: frame,
-                        clickInsteadOfPress: !enabled
+                        // Dialog buttons take a real click even when enabled:
+                        // Safari's permission prompts list AXPress and report
+                        // success, but ignore it ("Allow" did nothing once the
+                        // prompt's window was key and its buttons enabled).
+                        clickInsteadOfPress: !enabled || (inDialog && role == Role.button.rawValue && rawFrame != nil)
                     ))
                 }
 
@@ -596,9 +600,12 @@ enum PaletteSource {
             if item.clickInsteadOfPress {
                 let front = NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "?"
                 OSLog.main.log("Palette: clicking \(item.role, privacy: .public) at \(Int(frame.midX), privacy: .public),\(Int(frame.midY), privacy: .public) (Cocoa); frontmost \(front, privacy: .public)")
-                // The first click can be spent on focusing the window; click
-                // again while the button is still there.
-                for attempt in 1...2 {
+                // On a disabled button the first click can be spent on focusing
+                // the window; click again while it is still there. An enabled
+                // one gets a single click, so a button that stays on screen
+                // (a disclosure, "Show Details") is not toggled twice.
+                let wasDisabled = (try? element.attribute(.enabled) as Bool?) == false
+                for attempt in 1...(wasDisabled ? 2 : 1) {
                     mouse.pressDown(.left)
                     usleep(60_000)
                     mouse.release(.left)
