@@ -8,13 +8,21 @@ on:
 
 jobs:
   main_test:
-    runs-on: xcode-27
-    env:
-      DEVELOPER_DIR: /Applications/Xcode_27.1.app/Contents/Developer
+    runs-on: macos-latest
 
     steps:
       - name: Checkout project
         uses: actions/checkout@v7
+
+      # The previous label, "xcode-27", matched no runner: this repository has no
+      # self-hosted runners, so every push queued a job that never started.
+      - name: Select the newest Xcode
+        run: |
+          set -eu
+          XCODE=$(ls -d /Applications/Xcode*.app 2>/dev/null | sort | tail -1)
+          [ -n "$XCODE" ] || { echo "::error::no Xcode installed"; exit 1; }
+          echo "DEVELOPER_DIR=$XCODE/Contents/Developer" >> "$GITHUB_ENV"
+          echo "selected $XCODE"
 
       - name: Show Xcode version
         run: xcodebuild -version
