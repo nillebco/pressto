@@ -7,15 +7,27 @@
 #   scripts/release 1.0            build, sign, notarize -> dist/Pressto-1.0.zip
 #   scripts/release 1.0 --publish  same, then create the GitHub release v1.0
 #
-# One-time setup:
+# One-time setup, local machine:
 #
-# - A "Developer ID Application" certificate in the login keychain (Xcode →
-#   Settings → Accounts → Manage Certificates → + → Developer ID Application;
-#   needs the Account Holder role on the team).
+# - A "Developer ID Application" certificate in the login keychain, obtained by
+#   uploading a CSR to the developer portal (Xcode's Manage Certificates menu
+#   returns "This operation can only be performed by the Account Holder" on
+#   organisation teams even for the Account Holder).
 # - notarytool credentials stored under the profile "pressto-notary":
 #     xcrun notarytool store-credentials pressto-notary \
-#         --apple-id <apple id> --team-id <team> --password <app-specific password>
+#         --apple-id <apple id> --team-id <team>
 #   Override with PRESSTO_NOTARY_PROFILE.
+#
+# CI (see .github/workflows/release.yml) instead supplies:
+#
+# - PRESSTO_SIGN_IDENTITY   the imported identity name, e.g.
+#                           "Developer ID Application: nillebco (S8T2KKG4YP)".
+# - PRESSTO_NOTARY_KEY      path to the App Store Connect API key (.p8).
+# - PRESSTO_NOTARY_KEY_ID   its Key ID.
+# - PRESSTO_NOTARY_ISSUER   its Issuer ID (Team keys only).
+#
+# When the API key variables are set the keychain profile is not used, so no
+# interactive keychain access is needed.
 
 set -eu
 
@@ -24,6 +36,12 @@ PUBLISH=${2:-}
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$ROOT"
+
+# GitHub repository to publish to, always derived from origin: this checkout
+# also has an "upstream" remote pointing at mjrusso/scoot, which is what bare
+# gh commands resolve to (they fail on --verify-tag or target the wrong repo).
+REMOTE=$(git remote get-url origin 2>/dev/null || echo '')
+REPO=$(printf '%s' "$REMOTE" | sed -e 's#^.*github\.com[:/]##' -e 's#\.git$##')
 
 PROFILE=${PRESSTO_NOTARY_PROFILE:-pressto-notary}
 IDENTITY=${PRESSTO_SIGN_IDENTITY:-}
@@ -71,7 +89,19 @@ codesign --force --options runtime --timestamp \
 codesign --verify --strict --deep --verbose=2 "$APP"
 
 ditto -c -k --keepParent "$APP" "$ZIP"
-xcrun notarytool submit "$ZIP" --keychain-profile "$PROFILE" --wait
+
+# Local runs read the keychain profile; CI passes an App Store Connect API key,
+# which notarytool reads straight from the .p8 file.
+if [ -n "${PRESSTO_NOTARY_KEY:-}" ]; then
+    set -- --key "$PRESSTO_NOTARY_KEY" --key-id "${PRESSTO_NOTARY_KEY_ID:?PRESSTO_NOTARY_KEY_ID is required with PRESSTO_NOTARY_KEY}"
+    if [ -n "${PRESSTO_NOTARY_ISSUER:-}" ]; then
+        set -- "$@" --issuer "$PRESSTO_NOTARY_ISSUER"
+    fi
+    xcrun notarytool submit "$ZIP" "$@" --wait
+else
+    xcrun notarytool submit "$ZIP" --keychain-profile "$PROFILE" --wait
+fi
+
 xcrun stapler staple "$APP"
 spctl --assess --type execute --verbose "$APP"
 
@@ -81,7 +111,14 @@ ditto -c -k --keepParent "$APP" "$ZIP"
 shasum -a 256 "$ZIP"
 
 if [ "$PUBLISH" = "--publish" ]; then
-    git tag -a "v$VERSION" -m "Pressto $VERSION"
-    git push origin "v$VERSION"
-    gh release create "v$VERSION" "$ZIP" --title "Pressto $VERSION" --generate-notes
+    # In CI the tag is what triggered the run, so it already exists and pushing
+    # it again would fail.
+    if git rev-parse -q --verify "refs/tags/v$VERSION" >/dev/null; then
+        echo "tag v$VERSION already exists"
+    else
+        git tag -a "v$VERSION" -m "Pressto $VERSION"
+        git push origin "v$VERSION"
+    fi
+    gh release create "v$VERSION" "$ZIP" --repo "$REPO" --verify-tag \
+        --title "Pressto $VERSION" --generate-notes
 fi

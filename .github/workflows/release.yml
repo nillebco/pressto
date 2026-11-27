@@ -1,0 +1,133 @@
+name: release
+
+# Tag pushes build, sign, notarize, staple and publish Pressto.zip.
+# workflow_dispatch is for rehearsing the pipeline: with dry_run it only builds.
+
+on:
+  push:
+    tags: [ 'v*' ]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build, e.g. 1.5 (a tag push uses the tag name instead)'
+        required: true
+      dry_run:
+        description: 'Build and ad-hoc sign only: no certificate, no notarization, no GitHub release'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: macos-latest
+    timeout-minutes: 75
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v7
+        with:
+          # The release script derives the build number from the commit count.
+          fetch-depth: 0
+
+      - name: Select the newest Xcode
+        run: |
+          set -eu
+          XCODE=$(ls -d /Applications/Xcode*.app 2>/dev/null | sort | tail -1)
+          [ -n "$XCODE" ] || { echo "::error::no Xcode installed"; exit 1; }
+          echo "DEVELOPER_DIR=$XCODE/Contents/Developer" >> "$GITHUB_ENV"
+          echo "selected $XCODE"
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Resolve version
+        run: |
+          set -eu
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION="${{ inputs.version }}"
+          fi
+          [ -n "$VERSION" ] || { echo "::error::no version given"; exit 1; }
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "version: $VERSION"
+
+      # Nothing below needs secrets, so the pipeline can be rehearsed on a fork
+      # before the certificate and API key exist.
+      - name: Build (dry run)
+        if: ${{ inputs.dry_run }}
+        run: |
+          set -eu
+          xcodebuild -project Scoot.xcodeproj -scheme Scoot \
+            -configuration Release -derivedDataPath .build-release \
+            MARKETING_VERSION="$VERSION" build
+          APP=.build-release/Build/Products/Release/Pressto.app
+          codesign -dv --verbose=2 "$APP" || true
+          defaults read "$PWD/$APP/Contents/Info.plist" CFBundleShortVersionString
+
+      - name: Check secrets
+        if: ${{ ! inputs.dry_run }}
+        env:
+          P12: ${{ secrets.DEVELOPER_ID_P12_BASE64 }}
+          P12_PASSWORD: ${{ secrets.DEVELOPER_ID_P12_PASSWORD }}
+          ASC_KEY: ${{ secrets.ASC_KEY_P8_BASE64 }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          missing=""
+          [ -n "$P12" ] || missing="$missing DEVELOPER_ID_P12_BASE64"
+          [ -n "$P12_PASSWORD" ] || missing="$missing DEVELOPER_ID_P12_PASSWORD"
+          [ -n "$ASC_KEY" ] || missing="$missing ASC_KEY_P8_BASE64"
+          [ -n "$ASC_KEY_ID" ] || missing="$missing ASC_KEY_ID"
+          [ -n "$ASC_ISSUER_ID" ] || missing="$missing ASC_ISSUER_ID"
+          if [ -n "$missing" ]; then
+            echo "::error::missing repository secrets:$missing"
+            exit 1
+          fi
+
+      - name: Import Developer ID certificate
+        if: ${{ ! inputs.dry_run }}
+        env:
+          P12: ${{ secrets.DEVELOPER_ID_P12_BASE64 }}
+          P12_PASSWORD: ${{ secrets.DEVELOPER_ID_P12_PASSWORD }}
+        run: |
+          set -eu
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PASSWORD=$(uuidgen)
+          printf '%s' "$P12" | openssl base64 -d -A -out "$RUNNER_TEMP/identity.p12"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 3600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security import "$RUNNER_TEMP/identity.p12" -k "$KEYCHAIN" \
+            -P "$P12_PASSWORD" -T /usr/bin/codesign
+          # Without the partition list codesign cannot use the key unattended.
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" >/dev/null
+          security list-keychains -d user -s "$KEYCHAIN" login.keychain-db
+          rm -f "$RUNNER_TEMP/identity.p12"
+          security find-identity -v -p codesigning "$KEYCHAIN"
+
+      - name: Build, sign, notarize, staple, publish
+        if: ${{ ! inputs.dry_run }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ASC_KEY: ${{ secrets.ASC_KEY_P8_BASE64 }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          set -eu
+          mkdir -p "$RUNNER_TEMP/asc"
+          KEY_PATH="$RUNNER_TEMP/asc/AuthKey_$ASC_KEY_ID.p8"
+          printf '%s' "$ASC_KEY" | openssl base64 -d -A -out "$KEY_PATH"
+          chmod 600 "$KEY_PATH"
+          # The script picks the imported Developer ID identity itself and
+          # derives the GitHub repository from the origin remote.
+          PRESSTO_NOTARY_KEY="$KEY_PATH" \
+          PRESSTO_NOTARY_KEY_ID="$ASC_KEY_ID" \
+          PRESSTO_NOTARY_ISSUER="$ASC_ISSUER_ID" \
+            scripts/release "$VERSION" --publish
