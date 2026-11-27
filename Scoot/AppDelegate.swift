@@ -584,6 +584,24 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
+    /// Element mode's plain Enter shares the palette's dialog focus handoff.
+    /// Ordinary targets remain single mouse clicks, including controls whose
+    /// AXPress behavior differs from a mouse click.
+    func clickElementAtCursor() {
+        let point = NSEvent.mouseLocation
+        if let app = currentApp,
+           let item = PaletteSource.dialogButton(at: point, for: app) {
+            perform(item)
+            return
+        }
+        bringToBackground {
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 150_000_000)
+                Mouse().click(button: .left, at: point)
+            }
+        }
+    }
+
     /// Scans the focused window for element-based navigation, retrying when
     /// Scoot has just woken the app's accessibility tree.
     ///

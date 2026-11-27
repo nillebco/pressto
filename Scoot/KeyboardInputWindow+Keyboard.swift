@@ -85,8 +85,12 @@ extension KeyboardInputWindow {
         // significantly improves reliability. For more context, see
         // <https://github.com/mjrusso/scoot/issues/28>.
         case ("\r", false, []):
-            appDelegate?.bringToBackground { [mouse] in
-                mouse.click(button: .left)
+            if activeJumpMode == .element {
+                appDelegate?.clickElementAtCursor()
+            } else {
+                appDelegate?.bringToBackground { [mouse] in
+                    mouse.click(button: .left)
+                }
             }
             return
         case ("\r", false, _), ("[", false, _), ("]", false, _):

@@ -441,6 +441,40 @@ enum PaletteSource {
         }
     }
 
+    /// Resolve a dialog button under the pointer in the target app, ignoring
+    /// Pressto's overlay. Walk parents because hit testing can return its label.
+    static func dialogButton(at point: CGPoint, for runningApp: NSRunningApplication) -> PaletteItem? {
+        guard let app = Application(runningApp) else { return nil }
+        let location = point.convertToCG()
+        guard let hit = try? app.elementAtPosition(Float(location.x), Float(location.y)) else { return nil }
+        var node: UIElement? = hit
+        var button: UIElement?
+        var inDialog = false
+        for _ in 0..<32 {
+            guard let current = node else { break }
+            let role: String = (try? current.attribute(.role)) ?? ""
+            let subrole: String = (try? current.attribute(.subrole)) ?? ""
+            if button == nil, role == Role.button.rawValue { button = current }
+            if role == "AXSheet" || subrole.hasSuffix("Dialog") { inDialog = true }
+            let parent: UIElement? = try? current.attribute(.parent)
+            if parent == current { break }
+            node = parent
+        }
+        guard inDialog, let button,
+              let frame: CGRect = try? button.attribute(.frame),
+              frame.contains(location) else { return nil }
+        return PaletteItem(
+            kind: .element,
+            label: label(of: button, role: Role.button.rawValue) ?? "",
+            context: "button",
+            role: Role.button.rawValue,
+            element: button,
+            frame: frame.convertToCocoa(),
+            clickInsteadOfPress: true,
+            wasDisabledWhenScanned: (try? button.attribute(.enabled) as Bool?) == false
+        )
+    }
+
     // MARK: - Acting
 
     /// Presses the item: `AXPress` when supported, focus for text inputs, and a
