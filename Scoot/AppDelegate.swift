@@ -574,7 +574,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // Wait for the target app to be active: a click on a sheet's button
         // only activates the app if it lands too early.
         bringToBackground {
-            PaletteSource.perform(item)
+            Task { @MainActor in
+                // A non-activating palette leaves Safari frontmost even while
+                // it owns keyboard focus. Let ordering-out and focus release
+                // finish before touching the target window.
+                try? await Task.sleep(nanoseconds: 150_000_000)
+                await PaletteSource.perform(item)
+            }
         }
     }
 
@@ -636,6 +642,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // moves underneath.
         inputWindow.hideJumpViews()
         jumpWindows.forEach { $0.orderOut(nil) }
+        inputWindow.orderOut(nil)
 
         NSApp.hide(self)
     }

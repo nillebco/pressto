@@ -446,7 +446,7 @@ enum PaletteSource {
     /// Presses the item: `AXPress` when supported, focus for text inputs, and a
     /// synthesized click at the element's center as a last resort.
     @discardableResult
-    static func perform(_ item: PaletteItem) -> Bool {
+    @MainActor static func perform(_ item: PaletteItem) async -> Bool {
 
         if let run = item.run {
             run()
@@ -491,12 +491,12 @@ enum PaletteSource {
                     try? window.setAttribute(.main, value: true)
                     try? window.setAttribute(.focused, value: true)
                 }
-                usleep(150_000)
+                try? await Task.sleep(nanoseconds: 150_000_000)
             }
             let mouse = Mouse()
             let target = CGPoint(x: frame.midX, y: frame.midY)
             mouse.move(to: target)
-            usleep(item.clickInsteadOfPress ? 250_000 : 20000)
+            try? await Task.sleep(nanoseconds: item.clickInsteadOfPress ? 250_000_000 : 20_000_000)
             if item.clickInsteadOfPress {
                 let front = NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "?"
                 OSLog.main.log("Palette: clicking \(item.role, privacy: .public) at \(Int(frame.midX), privacy: .public),\(Int(frame.midY), privacy: .public) (Cocoa); frontmost \(front, privacy: .public)")
@@ -508,7 +508,9 @@ enum PaletteSource {
                     guard mouse.click(button: .left, at: target, holdMicroseconds: 60_000) else {
                         return false
                     }
-                    usleep(300_000)
+                    // Yield so Pressto can finish releasing key focus and
+                    // Safari can process the first click as activation.
+                    try? await Task.sleep(nanoseconds: 300_000_000)
                     let gone = (try? element.attribute(.role) as String?) == nil
                     OSLog.main.log("Palette: click \(attempt, privacy: .public): button \(gone ? "gone" : "still there", privacy: .public)")
                     if gone { break }
