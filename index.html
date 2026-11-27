@@ -107,7 +107,7 @@ footer a { color: var(--muted); }
       <a class="btn primary" href="#get">Get Pressto</a>
       <a class="btn ghost" href="https://github.com/nillebco/pressto">Source on GitHub</a>
     </div>
-    <p class="note">Free and open source, for macOS 12 and later. For now you build it yourself; a signed download is coming.</p>
+    <p class="note">Free and open source, for macOS 12 and later. Signed, notarized, one download.</p>
   </div>
 
   <div class="stage" aria-label="Example: typing cplmrg finds the Complete merge button">
@@ -167,18 +167,28 @@ footer a { color: var(--muted); }
 
   <section id="get">
     <h2>Get Pressto</h2>
-    <p class="section-lead">There is no release yet. Building it takes a couple of minutes and needs Xcode.</p>
+    <p class="section-lead">Version 1.4, signed with a Developer ID and notarized by Apple. Unzip it, move it to <i>Applications</i>, open it.</p>
     <div class="get">
+      <div class="cta">
+        <a class="btn primary" href="https://github.com/nillebco/pressto/releases/latest/download/Pressto-1.4.zip">Download Pressto 1.4</a>
+        <a class="btn ghost" href="https://github.com/nillebco/pressto/releases">All releases</a>
+      </div>
+      <p class="note">Universal (Apple silicon and Intel), macOS 12 or later. Because it is notarized, a double click just opens it, and the Accessibility permission survives upgrades.</p>
       <ol>
-        <li>Clone the source and build it:
+        <li>Unzip the download and move <b>Pressto</b> to <i>Applications</i>.</li>
+        <li>Open it, then give Pressto <b>Accessibility</b> access in System Settings → Privacy &amp; Security → Accessibility. Until you do, its menu bar icon is red, and its menu offers a shortcut to that settings page.</li>
+        <li>The first time you open the palette over a browser, macOS asks whether Pressto may control it. Yes lets you find tabs by part of their address; saying no only costs that.</li>
+      </ol>
+      <details><summary>Prefer to build from source?</summary>
+        <ol>
+          <li>Clone the source and build it:
 <pre>git clone https://github.com/nillebco/pressto.git
 cd pressto
 scripts/dev</pre>
-          <code>scripts/dev</code> builds the app, signs it with your Apple Development certificate if you have one, and launches it.</li>
-        <li>When macOS asks, give Pressto <b>Accessibility</b> access in System Settings → Privacy &amp; Security → Accessibility. Until you do, its menu bar icon is red, and its menu offers a shortcut to that settings page.</li>
-        <li>Optionally, move or link <code>.build/Build/Products/Debug/Pressto.app</code> into <i>Applications</i> so Spotlight and launchers find it.</li>
-      </ol>
-      <p class="note">A signed, notarized download will replace these steps. <a href="https://github.com/nillebco/pressto">Watch the repository</a> to hear about it.</p>
+            <code>scripts/dev</code> builds the app, signs it with your Apple Development certificate if you have one, and launches it. A build you make yourself needs Accessibility granted again after each rebuild.</li>
+          <li>Optionally, move or link <code>.build/Build/Products/Debug/Pressto.app</code> into <i>Applications</i> so Spotlight and launchers find it.</li>
+        </ol>
+      </details>
     </div>
   </section>
 
@@ -186,12 +196,12 @@ scripts/dev</pre>
     <h2>Questions</h2>
     <div class="faq">
       <details><summary>Why does Pressto ask for Accessibility access?</summary><p>That permission is how one app can see and press another app's buttons; VoiceOver and every window manager use it too. Pressto uses it only for that. It collects nothing and makes no network requests.</p></details>
-      <details><summary>I granted access, but the icon is still red.</summary><p>macOS ties the permission to the app's signature. A build signed without a certificate (ad-hoc) gets a new signature each time it is rebuilt, so the old permission stops matching. Remove Pressto from the Accessibility list, add it again, or build with <code>scripts/dev</code>, which signs with your Apple Development certificate so the permission survives rebuilds.</p></details>
+      <details><summary>I granted access, but the icon is still red.</summary><p>macOS ties the permission to the app's signature. A build signed without a certificate (ad-hoc) gets a new signature each time it is rebuilt, so the old permission stops matching. The download from the releases page is signed with a Developer ID, so it keeps the permission across upgrades; for your own builds, remove Pressto from the Accessibility list, add it again, or build with <code>scripts/dev</code>, which signs with your Apple Development certificate so the permission survives rebuilds.</p></details>
       <details><summary>Why does it ask to control my browser?</summary><p>The first time you open the palette over Safari, Chrome, Brave, Edge or Vivaldi, macOS asks whether Pressto may control that browser. Saying yes lets it read the address of each tab when you open the palette, so you can find a tab by part of its address. Saying no is fine: tabs are still listed by title. You can change it in System Settings → Privacy &amp; Security → Automation. Firefox and Zen don't ask: Pressto reads the session file they keep on disk. Either way, nothing leaves your Mac.</p></details>
       <details><summary>A web page shows only its menu items.</summary><p>Firefox, Zen and Chromium-based apps build their accessibility description only when an assistive tool asks for it. Pressto asks when the palette opens and searches again while the page fills in, so the window's controls can arrive a second later on the first try.</p></details>
       <details><summary>Can I change the shortcuts?</summary><p>Yes, all four — the palette, hints, grid and free cursor — in Pressto's Settings.</p></details>
       <details><summary>Can I still point at things the old way?</summary><p>Yes. Pressto keeps Scoot's hint labels (<kbd>⇧⌘J</kbd>), keyboard grid (<kbd>⇧⌘K</kbd>) and free cursor movement (<kbd>⇧⌘L</kbd>) for anything without a name.</p></details>
-      <details><summary>Why isn't it on the Mac App Store?</summary><p>App Store apps run in a sandbox that forbids pressing other apps' buttons, which is the whole point of Pressto. It will ship as a signed, notarized download instead, like most keyboard tools for the Mac.</p></details>
+      <details><summary>Why isn't it on the Mac App Store?</summary><p>App Store apps run in a sandbox that forbids pressing other apps' buttons, which is the whole point of Pressto. It ships as a signed, notarized download instead, like most keyboard tools for the Mac.</p></details>
       <details><summary>Where does it come from?</summary><p>Pressto is built on <a href="https://github.com/mjrusso/scoot">Scoot</a> by Michael Russo, an open-source keyboard cursor tool under the BSD 3-Clause licence. The palette is new; fixes that help Scoot too are sent back upstream.</p></details>
     </div>
   </section>
