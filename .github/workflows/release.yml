@@ -15,6 +15,10 @@ on:
         description: 'Build and ad-hoc sign only: no certificate, no notarization, no GitHub release'
         type: boolean
         default: false
+      publish:
+        description: 'Create the GitHub release after notarizing (tag pushes always do)'
+        type: boolean
+        default: true
 
 permissions:
   contents: write
@@ -127,7 +131,9 @@ jobs:
           chmod 600 "$KEY_PATH"
           # The script picks the imported Developer ID identity itself and
           # derives the GitHub repository from the origin remote.
+          args=""
+          if [ "${{ inputs.publish }}" != "false" ]; then args="--publish"; fi
           PRESSTO_NOTARY_KEY="$KEY_PATH" \
           PRESSTO_NOTARY_KEY_ID="$ASC_KEY_ID" \
           PRESSTO_NOTARY_ISSUER="$ASC_ISSUER_ID" \
-            scripts/release "$VERSION" --publish
+            scripts/release "$VERSION" $args
