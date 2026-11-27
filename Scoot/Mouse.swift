@@ -42,6 +42,33 @@ struct Mouse {
         release(button)
     }
 
+    /// Click a known target without sampling the cursor between posted events.
+    /// A palette action is a plain single click, independent of held hotkeys.
+    @discardableResult
+    func click(button: Mouse.Button, at point: CGPoint, holdMicroseconds: UInt32 = 10_000) -> Bool {
+        let location = point.convertToCG()
+        guard let down = Self.targetedClickEvent(button: button, event: .down, location: location),
+              let up = Self.targetedClickEvent(button: button, event: .up, location: location) else {
+            return false
+        }
+        down.post(tap: .cghidEventTap)
+        usleep(holdMicroseconds)
+        up.post(tap: .cghidEventTap)
+        return true
+    }
+
+    /// `location` is in Quartz screen coordinates. Kept separate so event
+    /// construction can be tested without sending clicks to the desktop.
+    static func targetedClickEvent(button: Mouse.Button, event: Mouse.Event, location: CGPoint) -> CGEvent? {
+        let result = CGEvent(mouseEventSource: nil,
+                             mouseType: button.cgEventType(for: event),
+                             mouseCursorPosition: location,
+                             mouseButton: button.cgMouseButton)
+        result?.flags = []
+        result?.setIntegerValueField(.mouseEventClickState, value: 1)
+        return result
+    }
+
     func pressDown(_ button: Mouse.Button) {
         CGEvent(
             mouseEventSource: nil,

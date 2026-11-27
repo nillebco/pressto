@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		AABB00112233445566778801 /* MouseEventTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABB00112233445566778802 /* MouseEventTests.swift */; };
 		E5F0A0FFEC85B0660E2DCC5C /* Color+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = E500850427BAA0C70053CB02 /* Color+Extensions.swift */; };
 		7DAB924A9CC663786ACF8B09 /* ColorStorageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7819B5ECE743DB5A5FA78A18 /* ColorStorageTests.swift */; };
 		E500850527BAA0C70053CB02 /* Color+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = E500850427BAA0C70053CB02 /* Color+Extensions.swift */; };
@@ -100,6 +101,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		AABB00112233445566778802 /* MouseEventTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MouseEventTests.swift; sourceTree = "<group>"; };
 		7819B5ECE743DB5A5FA78A18 /* ColorStorageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorStorageTests.swift; sourceTree = "<group>"; };
 		E500850427BAA0C70053CB02 /* Color+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Color+Extensions.swift"; sourceTree = "<group>"; };
 		E500850927BC09530053CB02 /* AboutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutView.swift; sourceTree = "<group>"; };
@@ -290,6 +292,7 @@
 				E59C1630264185940033E2CC /* TreeTests.swift */,
 				E5F0A0042B1A00010000F001 /* FuzzyTests.swift */,
 				E5F0A0182B1A00010000F001 /* PaletteSearchTests.swift */,
+				AABB00112233445566778802 /* MouseEventTests.swift */,
 				E5EB84522787E3F80086A5D6 /* PositionableTests.swift */,
 				E5776241262F04D300849D7D /* Info.plist */,
 			);
@@ -501,6 +504,7 @@
 				E5F0A0032B1A00010000F001 /* Fuzzy.swift in Sources */,
 				E5F0A0172B1A00010000F001 /* PaletteSearch.swift in Sources */,
 				E5F0A0192B1A00010000F001 /* PaletteSearchTests.swift in Sources */,
+				AABB00112233445566778801 /* MouseEventTests.swift in Sources */,
 				E5EB845127837F380086A5D6 /* GeometryTests.swift in Sources */,
 				7DAB924A9CC663786ACF8B09 /* ColorStorageTests.swift in Sources */,
 				E59C1631264185940033E2CC /* TreeTests.swift in Sources */,

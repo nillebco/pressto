@@ -58,6 +58,10 @@ struct PaletteItem {
     /// it anyway (see `elementItems`): pressing it goes through a real click.
     var clickInsteadOfPress = false
 
+    /// Preserve the scan-time state: raising Safari can enable the button
+    /// before the first click has actually focused its permission prompt.
+    var wasDisabledWhenScanned = false
+
     /// The text the fuzzy matcher scores. The label comes first, so match
     /// indices below `label.count` can be highlighted in the label.
     var searchText: String {
@@ -263,7 +267,8 @@ enum PaletteSource {
                         // Safari's permission prompts list AXPress and report
                         // success, but ignore it ("Allow" did nothing once the
                         // prompt's window was key and its buttons enabled).
-                        clickInsteadOfPress: !enabled || (inDialog && role == Role.button.rawValue && rawFrame != nil)
+                        clickInsteadOfPress: !enabled || (inDialog && role == Role.button.rawValue && rawFrame != nil),
+                        wasDisabledWhenScanned: !enabled
                     ))
                 }
 
@@ -475,6 +480,8 @@ enum PaletteSource {
             // Safari's camera/microphone prompt ignored a click posted 20 ms
             // after activation, but takes one with the window raised and a
             // pause after the move.
+            let needsFocusClick = item.wasDisabledWhenScanned
+                || (try? element.attribute(.enabled) as Bool?) == false
             if item.clickInsteadOfPress {
                 if let pid = try? element.pid() {
                     AXUIElementSetAttributeValue(AXUIElementCreateApplication(pid), kAXFrontmostAttribute as CFString, kCFBooleanTrue)
@@ -487,7 +494,8 @@ enum PaletteSource {
                 usleep(150_000)
             }
             let mouse = Mouse()
-            mouse.move(to: CGPoint(x: frame.midX, y: frame.midY))
+            let target = CGPoint(x: frame.midX, y: frame.midY)
+            mouse.move(to: target)
             usleep(item.clickInsteadOfPress ? 250_000 : 20000)
             if item.clickInsteadOfPress {
                 let front = NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "?"
@@ -496,18 +504,17 @@ enum PaletteSource {
                 // the window; click again while it is still there. An enabled
                 // one gets a single click, so a button that stays on screen
                 // (a disclosure, "Show Details") is not toggled twice.
-                let wasDisabled = (try? element.attribute(.enabled) as Bool?) == false
-                for attempt in 1...(wasDisabled ? 2 : 1) {
-                    mouse.pressDown(.left)
-                    usleep(60_000)
-                    mouse.release(.left)
+                for attempt in 1...(needsFocusClick ? 2 : 1) {
+                    guard mouse.click(button: .left, at: target, holdMicroseconds: 60_000) else {
+                        return false
+                    }
                     usleep(300_000)
                     let gone = (try? element.attribute(.role) as String?) == nil
                     OSLog.main.log("Palette: click \(attempt, privacy: .public): button \(gone ? "gone" : "still there", privacy: .public)")
                     if gone { break }
                 }
             } else {
-                mouse.click(button: .left)
+                return mouse.click(button: .left, at: target)
             }
             return true
         }
