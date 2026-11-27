@@ -589,7 +589,31 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // Wait for the target app to be active: a click on a sheet's button
         // only activates the app if it lands too early.
         bringToBackground {
-            PaletteSource.perform(item)
+            Task { @MainActor in
+                // A non-activating palette leaves Safari frontmost even while
+                // it owns keyboard focus. Let ordering-out and focus release
+                // finish before touching the target window.
+                try? await Task.sleep(nanoseconds: 150_000_000)
+                await PaletteSource.perform(item)
+            }
+        }
+    }
+
+    /// Element mode's plain Enter shares the palette's dialog focus handoff.
+    /// Ordinary targets remain single mouse clicks, including controls whose
+    /// AXPress behavior differs from a mouse click.
+    func clickElementAtCursor() {
+        let point = NSEvent.mouseLocation
+        if let app = currentApp,
+           let item = PaletteSource.dialogButton(at: point, for: app) {
+            perform(item)
+            return
+        }
+        bringToBackground {
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 150_000_000)
+                Mouse().click(button: .left, at: point)
+            }
         }
     }
 
@@ -651,6 +675,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // moves underneath.
         inputWindow.hideJumpViews()
         jumpWindows.forEach { $0.orderOut(nil) }
+        inputWindow.orderOut(nil)
 
         NSApp.hide(self)
     }

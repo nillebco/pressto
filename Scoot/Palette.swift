@@ -58,6 +58,10 @@ struct PaletteItem {
     /// it anyway (see `elementItems`): pressing it goes through a real click.
     var clickInsteadOfPress = false
 
+    /// Preserve the scan-time state: raising Safari can enable the button
+    /// before the first click has actually focused its permission prompt.
+    var wasDisabledWhenScanned = false
+
     /// The text the fuzzy matcher scores. The label comes first, so match
     /// indices below `label.count` can be highlighted in the label.
     var searchText: String {
@@ -319,7 +323,8 @@ enum PaletteSource {
                         // Safari's permission prompts list AXPress and report
                         // success, but ignore it ("Allow" did nothing once the
                         // prompt's window was key and its buttons enabled).
-                        clickInsteadOfPress: !enabled || (inDialog && role == Role.button.rawValue && rawFrame != nil)
+                        clickInsteadOfPress: !enabled || (inDialog && role == Role.button.rawValue && rawFrame != nil),
+                        wasDisabledWhenScanned: !enabled
                     ))
                 }
 
@@ -544,12 +549,46 @@ enum PaletteSource {
         }
     }
 
+    /// Resolve a dialog button under the pointer in the target app, ignoring
+    /// Pressto's overlay. Walk parents because hit testing can return its label.
+    static func dialogButton(at point: CGPoint, for runningApp: NSRunningApplication) -> PaletteItem? {
+        guard let app = Application(runningApp) else { return nil }
+        let location = point.convertToCG()
+        guard let hit = try? app.elementAtPosition(Float(location.x), Float(location.y)) else { return nil }
+        var node: UIElement? = hit
+        var button: UIElement?
+        var inDialog = false
+        for _ in 0..<32 {
+            guard let current = node else { break }
+            let role: String = (try? current.attribute(.role)) ?? ""
+            let subrole: String = (try? current.attribute(.subrole)) ?? ""
+            if button == nil, role == Role.button.rawValue { button = current }
+            if role == "AXSheet" || subrole.hasSuffix("Dialog") { inDialog = true }
+            let parent: UIElement? = try? current.attribute(.parent)
+            if parent == current { break }
+            node = parent
+        }
+        guard inDialog, let button,
+              let frame: CGRect = try? button.attribute(.frame),
+              frame.contains(location) else { return nil }
+        return PaletteItem(
+            kind: .element,
+            label: label(of: button, role: Role.button.rawValue) ?? "",
+            context: "button",
+            role: Role.button.rawValue,
+            element: button,
+            frame: frame.convertToCocoa(),
+            clickInsteadOfPress: true,
+            wasDisabledWhenScanned: (try? button.attribute(.enabled) as Bool?) == false
+        )
+    }
+
     // MARK: - Acting
 
     /// Presses the item: `AXPress` when supported, focus for text inputs, and a
     /// synthesized click at the element's center as a last resort.
     @discardableResult
-    static func perform(_ item: PaletteItem) -> Bool {
+    @MainActor static func perform(_ item: PaletteItem) async -> Bool {
 
         if let run = item.run {
             run()
@@ -583,6 +622,8 @@ enum PaletteSource {
             // Safari's camera/microphone prompt ignored a click posted 20 ms
             // after activation, but takes one with the window raised and a
             // pause after the move.
+            let needsFocusClick = item.wasDisabledWhenScanned
+                || (try? element.attribute(.enabled) as Bool?) == false
             if item.clickInsteadOfPress {
                 if let pid = try? element.pid() {
                     AXUIElementSetAttributeValue(AXUIElementCreateApplication(pid), kAXFrontmostAttribute as CFString, kCFBooleanTrue)
@@ -592,11 +633,12 @@ enum PaletteSource {
                     try? window.setAttribute(.main, value: true)
                     try? window.setAttribute(.focused, value: true)
                 }
-                usleep(150_000)
+                try? await Task.sleep(nanoseconds: 150_000_000)
             }
             let mouse = Mouse()
-            mouse.move(to: CGPoint(x: frame.midX, y: frame.midY))
-            usleep(item.clickInsteadOfPress ? 250_000 : 20000)
+            let target = CGPoint(x: frame.midX, y: frame.midY)
+            mouse.move(to: target)
+            try? await Task.sleep(nanoseconds: item.clickInsteadOfPress ? 250_000_000 : 20_000_000)
             if item.clickInsteadOfPress {
                 let front = NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "?"
                 OSLog.main.log("Palette: clicking \(item.role, privacy: .public) at \(Int(frame.midX), privacy: .public),\(Int(frame.midY), privacy: .public) (Cocoa); frontmost \(front, privacy: .public)")
@@ -604,18 +646,19 @@ enum PaletteSource {
                 // the window; click again while it is still there. An enabled
                 // one gets a single click, so a button that stays on screen
                 // (a disclosure, "Show Details") is not toggled twice.
-                let wasDisabled = (try? element.attribute(.enabled) as Bool?) == false
-                for attempt in 1...(wasDisabled ? 2 : 1) {
-                    mouse.pressDown(.left)
-                    usleep(60_000)
-                    mouse.release(.left)
-                    usleep(300_000)
+                for attempt in 1...(needsFocusClick ? 2 : 1) {
+                    guard mouse.click(button: .left, at: target, holdMicroseconds: 60_000) else {
+                        return false
+                    }
+                    // Yield so Pressto can finish releasing key focus and
+                    // Safari can process the first click as activation.
+                    try? await Task.sleep(nanoseconds: 300_000_000)
                     let gone = (try? element.attribute(.role) as String?) == nil
                     OSLog.main.log("Palette: click \(attempt, privacy: .public): button \(gone ? "gone" : "still there", privacy: .public)")
                     if gone { break }
                 }
             } else {
-                mouse.click(button: .left)
+                return mouse.click(button: .left, at: target)
             }
             return true
         }
